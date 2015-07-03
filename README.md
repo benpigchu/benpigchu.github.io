@@ -1,3 +1,3 @@
 # benpigchu.github.io
-A temporatory site of benpigchu.
+A temporary site of benpigchu.
 
