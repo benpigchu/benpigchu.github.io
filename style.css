@@ -1,1 +1,4 @@
 body,div,p {margin:0;padding:0}
+body {font-family:arial}
+.title {height:300px;background-color:#F70;color:#FFF;line-height:300px;text-align:center;font-size:36px;box-shadow: 0 2px 5px rgba(0,0,0,0.26)}
+.context {height:300px;;color:#777;line-height:300px;text-align:center}
