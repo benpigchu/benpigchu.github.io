@@ -1,4 +1,11 @@
 body,div,p {margin:0;padding:0}
 body {font-family:arial}
-.title {height:300px;background-color:#F70;color:#FFF;line-height:300px;text-align:center;font-size:36px;box-shadow: 0 2px 5px rgba(0,0,0,0.26)}
-.context {height:300px;;color:#777;line-height:300px;text-align:center}
+
+.linkBox {color:#000;text-decoration:none}
+.title {height:256px;background-color:#F70;color:#FFF;line-height:256px;text-align:center;font-size:36px;box-shadow: 0 2px 5px rgba(0,0,0,0.26)}
+.context {display:flex}
+.itemList {margin:32px auto}
+.itemBox {width:196px;background-color:#DDD;box-shadow: 0 2px 5px rgba(0,0,0,0.26)}
+.imageBox {height:128px;background-color:#BBB;line-height:128px;text-align:center;color:#EEE}
+.description {padding:8px}
+.itemName {font-weight:bold;}
