@@ -1,11 +1,22 @@
-body,div,p {margin:0;padding:0}
-body {font-family:arial}
+body,div,p{margin:0;padding:0;position:relative}
+body{font-family:arial;background:#F70}
+body,html{height:100%;width:100%}
+*{transition:all 250ms;border-color:rgba(0,0,0,0.5);color:rgba(0,0,0,0.5)}
+a{text-decoration:none}
 
-.linkBox {color:#000;text-decoration:none}
-.title {height:256px;background-color:#F70;color:#FFF;line-height:256px;text-align:center;font-size:36px;box-shadow: 0 2px 5px rgba(0,0,0,0.26)}
-.context {display:flex}
-.itemList {margin:32px auto}
-.itemBox {width:196px;background-color:#DDD;box-shadow: 0 2px 5px rgba(0,0,0,0.26)}
-.imageBox {height:128px;background-color:#BBB;line-height:128px;text-align:center;color:#EEE}
-.description {padding:8px}
-.itemName {font-weight:bold;}
+.context{position:absolute;height:100vh;width:100vh;top:0;bottom:0;left:0;right:0;margin:auto;transition:none}
+@media(max-aspect-ratio:1/1){
+	.context{height:100vw;width:100vw}
+}
+.square{position:absolute;height:128px;width:128px;top:0;bottom:0;left:0;right:0;margin:auto}
+.inSquare{height:100%;width:100%;line-height:124px;box-sizing:border-box;text-align:center;transform:rotate(-15deg);border-style:solid;border-width:2px;border-color:rgba(0,0,0,0.5);opacity:0.5}
+.squareText{transform:rotate(15deg);line-height:normal;display:inline-block;text-align:center;vertical-align:middle}
+.list{position:absolute;height:75%;width:75%;top:0;bottom:0;left:0;right:0;margin:auto;opacity:0}
+.inList{height:100%;width:100%;transform:rotate(-15deg)}
+.link{position: absolute;height:128px;width:128px;line-height:128px;text-align:center}
+.up{left:0;right:0;margin:auto;top:0}
+.down{left:0;right:0;margin:auto;bottom:0}
+.left{top:0;bottom:0;margin:auto;left:0}
+.right{top:0;bottom:0;margin:auto;right:0}
+.link>a{transform:rotate(15deg);line-height:normal;display:inline-block;text-align:center;vertical-align:middle}
+.show div{opacity:1}

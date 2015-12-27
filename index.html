@@ -5,16 +5,58 @@
 
 <title>Benpigchu</title>
 <link rel="stylesheet" href="style.css"></link>
+<meta id="viewport" name="viewport" content="width=512,min-height=512,user-scalable=no">
 </head>
 
 <body>
 
-<div class="title">Benpigchu's temporary site</div>
-<div class="context">
-	<div class="itemList">
-	<a class="linkBox" href="https://f70.github.io/snakeplus"><div class="itemBox"><div class="imageBox">NO PHOTO YET</div><div class="description"><p class="itemName">F70/snakeplus</p><p class="itemDetail">A game by F70</p></div></div></a>
+<div class="context" id="box">
+	<div class="square">
+		<div class="inSquare">
+			<div class="squareText">
+				<p>BPC v18</p>
+				<p>Coming soon</p>
+			</div>
+		</div>
+	</div>
+	<div class="list">
+		<div class="inList">
+			<div class="link up">
+				<a href="https://benpigchu.github.io">smallwork/<br>pikasite</a>
+			</div>
+			<div class="link down">
+				<a href="http://live.bilibili.com/51512">misc/<br>pikalive</a>
+			</div>
+			<div class="link left">
+				<a href="https://benpigchu.github.io/pikacube">smallwork/<br>pikacube</a>
+			</div>
+			<div class="link right">
+				<a href="https://f70.github.io/snakelus">f70/<br>snakeplus</a>
+			</div>
+		</div>
 	</div>
 </div>
+<script>
+	//<![CDATA[
+	var resetViewport=function(){
+		if(screen.width>screen.height){
+			document.getElementById("viewport").setAttribute("content","width="+(512*innerWidth)/innerHeight+",height="+512+",user-scalable=no")
+		}else{
+			document.getElementById("viewport").setAttribute("content","width="+512+",user-scalable=no")		
+		}
+	}
+
+	addEventListener("resize",resetViewport,false)
+	resetViewport()
+		
+		var timeoutId
+		document.addEventListener("mousemove",function(){
+			clearTimeout(timeoutId)
+			document.getElementById("box").classList.add("show")
+			timeoutId=setTimeout(function(){document.getElementById("box").classList.remove("show")},2000)
+		},false)
+	//]]>
+</script>
 </body>
 
 </html>
