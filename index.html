@@ -50,12 +50,17 @@
 	addEventListener("resize",resetViewport,false)
 	resetViewport()
 		
-		var timeoutId
-		document.addEventListener("mousemove",function(){
-			clearTimeout(timeoutId)
-			document.getElementById("box").classList.add("show")
-			timeoutId=setTimeout(function(){document.getElementById("box").classList.remove("show")},2000)
-		},false)
+	var timeoutId
+	document.addEventListener("mousemove",function(){
+		clearTimeout(timeoutId)
+		document.getElementById("box").classList.add("show")
+		timeoutId=setTimeout(function(){document.getElementById("box").classList.remove("show")},2000)
+	},false)
+	document.addEventListener("touchmove",function(){
+		clearTimeout(timeoutId)
+		document.getElementById("box").classList.add("show")
+		timeoutId=setTimeout(function(){document.getElementById("box").classList.remove("show")},2000)
+	},false)
 	//]]>
 </script>
 </body>
