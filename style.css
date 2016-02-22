@@ -1,7 +1,7 @@
 body,div,p{margin:0;padding:0;position:relative}
-body{font-family:arial;background:#F70}
+html{font-family:arial;background:#F70;background-image:url(pattern.png);background-position:center}
 body,html{height:100%;width:100%}
-*{transition:all 250ms;border-color:rgba(0,0,0,0.5);color:rgba(0,0,0,0.5)}
+*{transition:all 250ms;border-color:rgba(0,0,0,0.5);color:rgba(0,0,0,1)}
 a{text-decoration:none}
 
 .context{position:absolute;height:100vh;width:100vh;top:0;bottom:0;left:0;right:0;margin:auto;transition:none}
@@ -9,9 +9,8 @@ a{text-decoration:none}
 	.context{height:100vw;width:100vw}
 }
 .square{position:absolute;height:128px;width:128px;top:0;bottom:0;left:0;right:0;margin:auto}
-.inSquare{height:100%;width:100%;line-height:124px;box-sizing:border-box;text-align:center;transform:rotate(-15deg);border-style:solid;border-width:2px;border-color:rgba(0,0,0,0.5);opacity:0.5}
-.squareText{transform:rotate(15deg);line-height:normal;display:inline-block;text-align:center;vertical-align:middle}
-.list{position:absolute;height:75%;width:75%;top:0;bottom:0;left:0;right:0;margin:auto;opacity:0}
+.inSquare{height:100%;width:100%;background-image:url(v18.png);transform:scale(1.2);background-size:cover;box-sizing:border-box;text-align:center}
+.list{position:absolute;height:75%;width:75%;top:0;bottom:0;left:0;right:0;margin:auto}
 .inList{height:100%;width:100%;transform:rotate(-15deg)}
 .link{position: absolute;height:128px;width:128px;line-height:128px;text-align:center}
 .up{left:0;right:0;margin:auto;top:0}
@@ -19,4 +18,5 @@ a{text-decoration:none}
 .left{top:0;bottom:0;margin:auto;left:0}
 .right{top:0;bottom:0;margin:auto;right:0}
 .link>a{transform:rotate(15deg);line-height:normal;display:inline-block;text-align:center;vertical-align:middle}
-.show div{opacity:1}
+
+#background{top:0;bottom:0;left:0;right:0;position:fixed;width:100%;height:100%;z-index:-10000}
