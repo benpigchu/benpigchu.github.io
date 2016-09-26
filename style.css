@@ -1,22 +1,9 @@
 body,div,p{margin:0;padding:0;position:relative}
-html{font-family:arial;background:#F70;background-image:url(pattern.png);background-position:center}
-body,html{height:100%;width:100%}
-*{transition:all 250ms;border-color:rgba(0,0,0,0.5);color:rgba(0,0,0,1)}
+html{font-family:arial;background:#000;background-position:center}
+body,html{height:100%;width:100%;overflow:overlay}
+*{box-sizing:border-box}
+*,*::before,*::after{transition:all 250ms;border-color:rgba(0,0,0,0.5);color:rgba(0,0,0,1)}
 a{text-decoration:none}
 
-.context{position:absolute;height:100vh;width:100vh;top:0;bottom:0;left:0;right:0;margin:auto;transition:none}
-@media(max-aspect-ratio:1/1){
-	.context{height:100vw;width:100vw}
-}
-.square{position:absolute;height:128px;width:128px;top:0;bottom:0;left:0;right:0;margin:auto}
-.inSquare{height:100%;width:100%;background-image:url(v18.png);transform:scale(1.2);background-size:cover;box-sizing:border-box;text-align:center}
-.list{position:absolute;height:75%;width:75%;top:0;bottom:0;left:0;right:0;margin:auto}
-.inList{height:100%;width:100%;transform:rotate(-15deg)}
-.link{position: absolute;height:128px;width:128px;line-height:128px;text-align:center}
-.up{left:0;right:0;margin:auto;top:0}
-.down{left:0;right:0;margin:auto;bottom:0}
-.left{top:0;bottom:0;margin:auto;left:0}
-.right{top:0;bottom:0;margin:auto;right:0}
-.link>a{transform:rotate(15deg);line-height:normal;display:inline-block;text-align:center;vertical-align:middle}
-
-#background{top:0;bottom:0;left:0;right:0;position:fixed;width:100%;height:100%;z-index:-10000}
+#background{height:100vh;width:100vw;background-image:url("logov19.svg");background-position: 50% 50%;overflow:hidden}
+#background>a{position:absolute;width:100%;height:100%}
