@@ -6,131 +6,13 @@
 <title>Benpigchu</title>
 <link rel="stylesheet" href="style.css">
 <link rel="shortcut icon" href="favicon.ico">
-<meta id="viewport" name="viewport" content="width=512,min-height=512,user-scalable=no">
+<meta id="viewport" name="viewport" content="width=device-width,user-scalable=no">
 </head>
 
 <body>
-
-<div class="context" id="box">
-	<div class="square">
-		<div class="inSquare">
-		</div>
+	<div id="background">
+		<a href="https://benpigchu.com"></a>
 	</div>
-	<div class="list">
-		<div class="inList">
-			<div class="link up">
-				<a href="https://benpigchu.github.io">smallwork/<br>pikasite<br>(soon at benpigchu.com)</a>
-			</div>
-			<div class="link down">
-				<a href="http://live.bilibili.com/51512">misc/<br>pikalive</a>
-			</div>
-			<div class="link left">
-				<a href="https://benpigchu.github.io/pikacube">smallwork/<br>pikacube</a>
-			</div>
-			<div class="link right">
-				<a href="https://f70.github.io/snakeplus">f70/<br>snakeplus</a>
-			</div>
-		</div>
-	</div>
-</div>
-<canvas id="background"></canvas>
-<script>
-	//<![CDATA[
-	var resetViewport=function(){
-		if(screen.width>screen.height){
-			document.getElementById("viewport").setAttribute("content","width="+(512*innerWidth)/innerHeight+",height="+512+",user-scalable=no")
-		}else{
-			document.getElementById("viewport").setAttribute("content","width="+512+",user-scalable=no")		
-		}
-	}
-
-	addEventListener("resize",resetViewport,false)
-	resetViewport()
-	
-	 var isMobile={
-        Android:function(){
-            return navigator.userAgent.match(/Android/i)?true:false;
-        },
-        BlackBerry:function(){
-            return navigator.userAgent.match(/BlackBerry/i)?true:false;
-        },
-        iOS:function(){
-            return navigator.userAgent.match(/iPhone|iPad|iPod/i)?true:false;
-        },
-        Windows:function(){
-            return navigator.userAgent.match(/IEMobile/i)?true:false;
-        },
-        any:function(){
-            return(isMobile.Android()||isMobile.BlackBerry()||isMobile.iOS()||isMobile.Windows());
-        }
-    };
-    if(!isMobile.any()){
-        (function(){
-			var vetical=100
-			var horizontal=100
-			var frames=6
-			var c=document.getElementById("background")
-			var canvas=c.getContext("2d")
-			var cellSize=16
-			var checkCanvasSize=function(){
-				if (c.width!=window.innerWidth||c.height!=window.innerHeight)
-				{
-					c.width=window.innerWidth
-					c.height=window.innerHeight
-				}
-			}
-			var passTime=0
-			var lastTime=Date.now()
-			var checkTime=function(){
-				passTime=(Date.now()-lastTime)/800
-				lastTime=Date.now()
-			}
-			var Cell=function(){
-				this.phase=Math.random()*2*Math.PI
-				this.frequency=1+Math.random()
-				this.next=function(){
-					this.phase+=this.frequency*passTime
-					if(this.phase>=2*Math.PI){
-						this.phase-=2*Math.PI
-					}
-				}
-			}
-			var cellList=[]
-			for(var i=0;i<vetical*horizontal;i++){
-				cellList.push(new Cell())
-			}
-			var draw=function(){
-				canvas.clearRect(0,0,c.width,c.height)
-				var horizonalCellNum=Math.ceil(c.width/2/cellSize)
-				var verticalCellNum=Math.ceil(c.height/2/cellSize)
-				for(var i=0;i<vetical*horizontal;i++){
-					cellList[i].next()
-					var x=i%horizontal
-					var y=(i-x)/horizontal
-					if(x<=(horizontal-1)/2+horizonalCellNum&&x>=(horizontal-1)/2-horizonalCellNum&&y<=(vetical-1)/2+verticalCellNum&&y>=(vetical-1)/2-verticalCellNum){
-						var lightness=(Math.sin(cellList[i].phase)+1)*6+50
-						canvas.fillStyle="hsla(30,100%,"+lightness+"%,1)"
-						var positionX=c.width/2+(x-horizontal/2)*cellSize
-						var positionY=c.height/2+(y-vetical/2)*cellSize
-						canvas.fillRect(positionX,positionY,cellSize+1,cellSize+1)
-					}
-				}
-			}
-			var framecount=0
-			var animation=function(){
-				if(framecount%frames==0){	
-					checkCanvasSize()
-					checkTime()
-					draw()
-				}
-				framecount++
-				requestAnimationFrame(animation)
-			}
-			animation()
-		})()
-    }
-	//]]>
-</script>
 </body>
 
 </html>
