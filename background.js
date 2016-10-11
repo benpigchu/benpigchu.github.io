@@ -9,6 +9,13 @@ var nearSquare=document.getElementById("nearSquare")
 var deltaX=0
 var deltaY=0
 
+var orientationMap={
+	0:[[1,0,0],[0,-1,0]],
+	90:[[0,-1,0],[-1,0,0]],
+	180:[[-1,0,0],[0,1,0]],
+	270:[[0,1,0],[1,0,0]],
+}
+
 var render=function(){
 	var basicTransformX=0.05*window.innerWidth/2*deltaX
 	var basicTransformY=0.05*window.innerHeight/2*deltaY
@@ -29,8 +36,8 @@ if(!systemVar.isMobile){
 	})
 }else{
 	addEventListener("deviceorientation",function(event){
-		deltaX=getRotatedZ(1,0,0,event.beta,event.gamma)
-		deltaY=getRotatedZ(0,-1,0,event.beta,event.gamma)
+		deltaX=getRotatedZ(orientationMap[screen.orientation.angle][0][0],orientationMap[screen.orientation.angle][0][1],orientationMap[screen.orientation.angle][0][2],event.beta,event.gamma)
+		deltaY=getRotatedZ(orientationMap[screen.orientation.angle][1][0],orientationMap[screen.orientation.angle][1][1],orientationMap[screen.orientation.angle][1][2],event.beta,event.gamma)
 		render()
 	})
 }
