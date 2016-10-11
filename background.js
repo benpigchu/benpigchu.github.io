@@ -6,18 +6,34 @@ var farSquare=document.getElementById("farSquare")
 var midSquare=document.getElementById("midSquare")
 var nearSquare=document.getElementById("nearSquare")
 
-var render=function(basicTransformX,basicTransformY){
+var deltaX=0
+var deltaY=0
+
+var render=function(){
+	var basicTransformX=0.05*window.innerWidth/2*deltaX
+	var basicTransformY=0.05*window.innerHeight/2*deltaY
 	nearSquare.style.transform="translate("+basicTransformX+"px,"+basicTransformY+"px)"
 	midSquare.style.transform="translate("+(2*basicTransformX)+"px,"+(2*basicTransformY)+"px)"
 	farSquare.style.transform="translate("+(3*basicTransformX)+"px,"+(3*basicTransformY)+"px)"
 }
 
-addEventListener("mousemove",function(event){
-	render(0.05*(window.innerWidth/2-event.clientX),0.05*(window.innerHeight/2-event.clientY))
-})
+var getRotatedZ=function(x,y,z,beta,gamma){
+	return (z*Math.cos(beta*Math.PI/180)+y*Math.sin(beta*Math.PI/180))*Math.cos(gamma*Math.PI/180)-x*Math.sin(gamma*Math.PI/180)
+}
 
 if(!systemVar.isMobile){
-	addEventListener("resize",function(){
-		render(0,0)
+	addEventListener("mousemove",function(event){
+		deltaX=1-event.clientX*2/window.innerWidth
+		deltaY=1-event.clientY*2/window.innerHeight
+		render()
+	})
+}else{
+	addEventListener("deviceorientation",function(event){
+		deltaX=getRotatedZ(1,0,0,event.beta,event.gamma)
+		deltaY=getRotatedZ(0,-1,0,event.beta,event.gamma)
+		render()
 	})
 }
+addEventListener("resize",function(){
+	render()
+})
