@@ -7,7 +7,7 @@ a{text-decoration:none}
 
 #background{height:100vh;width:100vw;overflow:hidden}
 #background>a{z-index:6;position:absolute;width:100%;height:100%}
-#background>div{position:absolute;will-change:transform}
+#background>div{position:absolute;will-change:transform;transition:transform 250ms ease-out}
 #farSquare{z-index:1;left:-7.5%;right:-7.5%;top:-7.5%;bottom:-7.5%;background-position:50% 50%;background-image:url("logov19/farSquare.png");background-size:1920px}
 #midSquare{z-index:2;left:-5%;right:-5%;top:-5%;bottom:-5%;background-position:50% 50%;background-image:url("logov19/midSquare.png");background-size:1920px}
 #nearSquare{z-index:3;left:-2.5%;right:-2.5%;top:-2.5%;bottom:-2.5%;background-position:50% 50%;background-image:url("logov19/nearSquare.png");background-size:1920px}
