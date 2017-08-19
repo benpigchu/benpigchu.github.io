@@ -198,6 +198,7 @@
 		pass1DrawDatas(nullFilledArray(canvasCountX*canvasCountY).map(function(value,index){
 			return{pos:[index%canvasCountX,Math.floor(index/canvasCountX)],char:[Math.floor(Math.random()*charCountX),Math.floor(Math.random()*charCountY)]}
 		}))
+		pass1Inited=true
 	}
 	var pass1Updated=false
 	var pass1Update=function(){
@@ -265,7 +266,9 @@
 		gl.clear(gl.COLOR_BUFFER_BIT)
 	}
 	var animation=function(){
-		pass1Update()
+		if(pass1Inited){
+			pass1Update()
+		}
 		pass2Update()
 		requestAnimationFrame(animation)
 	}
