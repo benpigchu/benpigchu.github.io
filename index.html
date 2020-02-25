@@ -349,12 +349,12 @@
 					const newTime=Date.now()
 					shift+=(newTime-lastTime)/1000*(shiftSpeed-30*deltaY)
 					if(shift>patternHeight){
-						shift-=patternHeight
+						shift%=patternHeight
 					}
 					for(let i=0;i<cellCount;i++){
 						lights[i]+=(newTime-lastTime)/1000*12
 						if(lights[i]>lightCycles[i]){
-							lights[i]-=lightCycles[i]
+							lights[i]%=lightCycles[i]
 						}
 						allLights.fill(lights[i],6*i,6*i+6)
 					}
