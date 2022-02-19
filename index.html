@@ -14,18 +14,23 @@
 	*{margin:0;padding:0}
 	#background{position:fixed;overflow:none}
 	#canvas{position:absolute}
-	#logo{position:absolute;width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto}
-	#logo-square{position:absolute;background-image:url("square.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-square-intro;animation-duration:1200ms;animation-timing-function:ease}
-	#logo-detail{position:absolute;background-image:url("detail.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-detail-intro;animation-duration:1200ms;animation-timing-function:ease}
 	a{position:absolute;z-index:3}
+	#logo{position:absolute;width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto}
+	#logo-outline{position:absolute;background-image:url("outline.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-outline-intro;animation-duration:1000ms;animation-timing-function:cubic-bezier(0.55, 0.06, 0.68, 0.19)}
+	#logo-square{position:absolute;background-image:url("square.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-square-intro;animation-duration:1000ms;animation-timing-function:cubic-bezier(0.55, 0.06, 0.68, 0.19)}
+	#logo-detail{position:absolute;background-image:url("detail.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-detail-intro;animation-duration:1000ms;animation-timing-function:cubic-bezier(0.22, 0.61, 0.36, 1)}
+	@keyframes logo-outline-intro{
+		0%{opacity:0}
+		40%{opacity:1}
+	}
 	@keyframes logo-square-intro{
-		0%{opacity:0;transform:translateY(120px)}
-		50%{opacity:1;transform:none}
-		100%{opacity:1;transform:none}
+		0%{visibility:hidden}
+		40%{visibility:hidden}
+		100%{visibility:visible}
 	}
 	@keyframes logo-detail-intro{
 		0%{opacity:0}
-		50%{opacity:0}
+		40%{opacity:0}
 		100%{opacity:1}
 	}
 </style>
@@ -34,6 +39,7 @@
 		<a href="https://benpigchu.com"></a>
 		<canvas id="canvas"></canvas>
 		<div id="logo">
+			<div id="logo-outline"></div>
 			<div id="logo-square"></div>
 			<div id="logo-detail"></div>
 		</div>
@@ -46,22 +52,24 @@
 	// const
 	const cellSize=120
 	const cellWidth=16
-	const cellHeight=12
+	const cellHeight=9
 	const cellCount=cellWidth*cellHeight
 	const patternWidth=cellSize*cellWidth
 	const patternHeight=cellSize*cellHeight
 	const rectPositions=new Float32Array([-1,-1,-1,1,1,-1,1,-1,-1,1,1,1])
-	const orientationMap={
-		0:[[1,0,0],[0,-1,0]],
-		90:[[0,-1,0],[-1,0,0]],
-		180:[[-1,0,0],[0,1,0]],
-		270:[[0,1,0],[1,0,0]],
-	}
 	const canvas=document.getElementById("canvas")
-	const gl=canvas.getContext("webgl")
+	const gl=canvas.getContext("webgl2")
+	const colorBufferFloat=gl.getExtension("EXT_color_buffer_float")
+	if(!colorBufferFloat){
+		throw new Error("EXT_color_buffer_float webgl2 extension is not available")
+	}
 	// util
-	const getRotatedZ=(x,y,z,beta,gamma)=>{
-		return (z*Math.cos(beta*Math.PI/180)+y*Math.sin(beta*Math.PI/180))*Math.cos(gamma*Math.PI/180)-x*Math.sin(gamma*Math.PI/180)
+	const getTime=()=>{
+		if(performance){
+			return performance.now()
+		}else{
+			return Date.now()
+		}
 	}
 	const checkCanvasSize=()=>{
 		if(canvas.width!==window.innerWidth||canvas.height!==window.innerHeight){
@@ -106,80 +114,51 @@
 		gl.bindFramebuffer(gl.FRAMEBUFFER,fb)
 		gl.activeTexture(gl["TEXTURE"+id])
 		gl.bindTexture(gl.TEXTURE_2D,tex)
-		// we do not use power of 2 texture
-		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE)
-		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE)
+		// wrap
+		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT)
+		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT)
+		// pixel perfect
 		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST)
 		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST)
-		gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,width,height,0,gl.RGBA,gl.UNSIGNED_BYTE,null)
+		gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32F,width,height,0,gl.RGBA,gl.FLOAT,null)
 		gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0)
 	}
 	// pass
 	const pass1=(()=>{
 		const vertex=[
+		"#version 300 es",
 		"precision highp float;",
-		"attribute vec2 a_position;",
 		"uniform vec2 u_dimension;",
-		"attribute vec2 a_cell;",
-		"attribute vec2 a_node;",
-		"attribute vec2 a_lnode;",
-		"attribute vec2 a_rnode;",
-		"attribute vec2 a_tnode;",
-		"attribute vec2 a_ltnode;",
-		"attribute vec2 a_rtnode;",
-		"varying vec2 v_position;",
-		"varying vec2 v_node;",
-		"varying vec2 v_lnode;",
-		"varying vec2 v_rnode;",
-		"varying vec2 v_tnode;",
-		"varying vec2 v_ltnode;",
-		"varying vec2 v_rtnode;",
+		"in vec2 a_position;",
+		"in vec2 a_cell;",
+		"in float a_shift;",
+		"in float a_phase;",
+		"out vec2 v_position;",
+		"out float v_shift;",
+		"out float v_phase;",
 		"void main(){",
 		"    vec2 interval=vec2(1.0,1.0)/u_dimension;",
 		"    vec2 base=interval*a_cell;",
 		"    vec2 pos=base*2.0+(a_position+vec2(1.0,1.0))*interval-vec2(1.0,1.0);",
-		"    gl_Position=vec4(pos,0,1);",
 		"    v_position=a_position;",
-		"    v_node=a_node;",
-		"    v_lnode=a_lnode;",
-		"    v_rnode=a_rnode;",
-		"    v_tnode=a_tnode;",
-		"    v_ltnode=a_ltnode;",
-		"    v_rtnode=a_rtnode;",
+		"    v_shift=a_shift;",
+		"    v_phase=a_phase;",
+		"    gl_Position=vec4(pos,0.0,1);",
 		"}",
 		].join("\n")
 		const fragment=[
+		"#version 300 es",
 		"precision highp float;",
-		"varying vec2 v_position;",
-		"varying vec2 v_node;",
-		"varying vec2 v_lnode;",
-		"varying vec2 v_rnode;",
-		"varying vec2 v_tnode;",
-		"varying vec2 v_ltnode;",
-		"varying vec2 v_rtnode;",
+		"in vec2 v_position;",
+		"in float v_shift;",
+		"in float v_phase;",
+		"uniform vec2 u_size;",
+		"uniform vec2 u_border;",
+		"out vec4 fragColor;",
 		"void main(){",
-		"    float dcy=v_node.y-v_position.y;",
-		"    float dly=v_lnode.y-v_position.y;",
-		"    float dry=v_rnode.y-v_position.y;",
-		"    bool left=v_node.x>v_position.x;",
-		"    float dyl=left?dly:dcy;",
-		"    float dyr=left?dcy:dry;",
-		"    float dxl=left?(v_position.x+2.-v_lnode.x):(v_position.x-v_node.x);",
-		"    float dxr=left?(v_node.x-v_position.x):(2.+v_rnode.x-v_position.x);",
-		"    float dy=dyl+(dyr-dyl)*dxl/(dxl+dxr);",
-		"    float dtcy=v_tnode.y-v_position.y;",
-		"    float dtly=v_ltnode.y-v_position.y;",
-		"    float dtry=v_rtnode.y-v_position.y;",
-		"    bool tleft=v_tnode.x>v_position.x;",
-		"    float dtyl=tleft?dtly:dtcy;",
-		"    float dtyr=tleft?dtcy:dtry;",
-		"    float dtxl=tleft?(v_position.x+2.-v_ltnode.x):(v_position.x-v_tnode.x);",
-		"    float dtxr=tleft?(v_tnode.x-v_position.x):(2.+v_rtnode.x-v_position.x);",
-		"    float dty=dtyl+(dtyr-dtyl)*dtxl/(dtxl+dtxr);",
-		"    float d=dy>0.?dy:(2.0+dty);",
-		"    gl_FragColor=vec4((2.-d)/2.*vec3(1.,.5,0.)*.75,1.0);",
-		//"    gl_FragColor=vec4(dy>0.?(1.0-dy):0.,dty>0.?(1.0-dty):0.,max(v_position.x,v_position.y),1.0);",
-		//"    gl_FragColor=vec4(left?1.:0.,tleft?1.:0.,max(v_position.x,v_position.y),1.0);",
+		"    bool box=all(lessThan(abs(v_position),u_size+0.001));",
+		"    bool inner=all(lessThan(abs(v_position),u_size-u_border+0.001));",
+		"    fragColor=vec4(box?inner?1.0:0.5:0.0,v_phase,v_shift,1.0);",
 		"}",
 		].join("\n")
 		const allRectPositions=(()=>{
@@ -206,21 +185,13 @@
 		let program
 		let positionAL
 		let positionBuf
+		let shiftAL
+		let shiftBuf
+		let phaseAL
+		let phaseBuf
 		let dimensionUL
-		let cellAL
-		let cellBuf
-		let nodeAL
-		let nodeBuf
-		let lnodeAL
-		let lnodeBuf
-		let rnodeAL
-		let rnodeBuf
-		let tnodeAL
-		let tnodeBuf
-		let ltnodeAL
-		let ltnodeBuf
-		let rtnodeAL
-		let rtnodeBuf
+		let sizeUL
+		let borderUL
 		return {
 			init:(appPatternFB)=>{
 				patternFB=appPatternFB
@@ -228,6 +199,10 @@
 				gl.useProgram(program)
 				dimensionUL=gl.getUniformLocation(program,"u_dimension")
 				gl.uniform2f(dimensionUL,cellWidth,cellHeight)
+				sizeUL=gl.getUniformLocation(program,"u_size")
+				gl.uniform2f(sizeUL,80/120,80/120)
+				borderUL=gl.getUniformLocation(program,"u_border")
+				gl.uniform2f(borderUL,8/120,8/120)
 				positionAL=gl.getAttribLocation(program,"a_position")
 				positionBuf=gl.createBuffer()
 				gl.bindBuffer(gl.ARRAY_BUFFER,positionBuf)
@@ -236,20 +211,14 @@
 				cellBuf=gl.createBuffer()
 				gl.bindBuffer(gl.ARRAY_BUFFER,cellBuf)
 				gl.bufferData(gl.ARRAY_BUFFER,allCells,gl.STATIC_DRAW)
-				nodeAL=gl.getAttribLocation(program,"a_node")
-				nodeBuf=gl.createBuffer()
-				lnodeAL=gl.getAttribLocation(program,"a_lnode")
-				lnodeBuf=gl.createBuffer()
-				rnodeAL=gl.getAttribLocation(program,"a_rnode")
-				rnodeBuf=gl.createBuffer()
-				tnodeAL=gl.getAttribLocation(program,"a_tnode")
-				tnodeBuf=gl.createBuffer()
-				ltnodeAL=gl.getAttribLocation(program,"a_ltnode")
-				ltnodeBuf=gl.createBuffer()
-				rtnodeAL=gl.getAttribLocation(program,"a_rtnode")
-				rtnodeBuf=gl.createBuffer()
+				shiftAL=gl.getAttribLocation(program,"a_shift")
+				shiftBuf=gl.createBuffer()
+				gl.bindBuffer(gl.ARRAY_BUFFER,shiftBuf)
+				phaseAL=gl.getAttribLocation(program,"a_phase")
+				phaseBuf=gl.createBuffer()
+				gl.bindBuffer(gl.ARRAY_BUFFER,phaseBuf)
 			},
-			draw:({allNodes,allLNodes,allRNodes,allTNodes,allRTNodes,allLTNodes})=>{
+			draw:({allShifts,allPhases})=>{
 				gl.useProgram(program)
 				gl.bindFramebuffer(gl.FRAMEBUFFER,patternFB)
 				gl.viewport(0,0,patternWidth,patternHeight)
@@ -259,60 +228,55 @@
 				gl.enableVertexAttribArray(cellAL)
 				gl.bindBuffer(gl.ARRAY_BUFFER,cellBuf)
 				gl.vertexAttribPointer(cellAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(nodeAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,nodeBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allNodes,gl.STATIC_DRAW)
-				gl.vertexAttribPointer(nodeAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(lnodeAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,lnodeBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allLNodes,gl.STATIC_DRAW)
-				gl.vertexAttribPointer(lnodeAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(rnodeAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,rnodeBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allRNodes,gl.STATIC_DRAW)
-				gl.vertexAttribPointer(rnodeAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(tnodeAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,tnodeBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allTNodes,gl.STATIC_DRAW)
-				gl.vertexAttribPointer(tnodeAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(ltnodeAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,ltnodeBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allLTNodes,gl.STATIC_DRAW)
-				gl.vertexAttribPointer(ltnodeAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(rtnodeAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,rtnodeBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allRTNodes,gl.STATIC_DRAW)
-				gl.vertexAttribPointer(rtnodeAL,2,gl.FLOAT,false,0,0)
+				gl.enableVertexAttribArray(shiftAL)
+				gl.bindBuffer(gl.ARRAY_BUFFER,shiftBuf)
+				gl.bufferData(gl.ARRAY_BUFFER,allShifts,gl.STATIC_DRAW)
+				gl.vertexAttribPointer(shiftAL,1,gl.FLOAT,false,0,0)
+				gl.enableVertexAttribArray(phaseAL)
+				gl.bindBuffer(gl.ARRAY_BUFFER,phaseBuf)
+				gl.bufferData(gl.ARRAY_BUFFER,allPhases,gl.STATIC_DRAW)
+				gl.vertexAttribPointer(phaseAL,1,gl.FLOAT,false,0,0)
 				gl.drawArrays(gl.TRIANGLES,0,6*cellCount)
 			}
 		}
 	})()
 	const pass2=(()=>{
 		const vertex=[
+		"#version 300 es",
 		"precision highp float;",
-		"attribute vec2 a_position;",
+		"in vec2 a_position;",
 		"void main(){",
 		"    gl_Position=vec4(a_position,0,1);",
 		"}",
 		].join("\n")
 		const fragment=[
+		"#version 300 es",
 		"precision highp float;",
+		"precision highp sampler2D;",
 		"uniform sampler2D u_image;",
 		"uniform vec2 u_resolution;",
-		"uniform float u_shift;",
 		"uniform vec2 u_texResolution;",
+		"out vec4 fragColor;",
 		"void main(){",
 		"    vec2 pos=(gl_FragCoord.xy-(u_resolution)/2.0);",
-		"    vec2 uv=(pos+vec2(0.0,u_shift))/u_texResolution+vec2(0.5,0.5);",
-		"    vec4 color=texture2D(u_image,mod(-uv,1.0));",
-		"    gl_FragColor=color;",
+		// For Pixel Perfect on WebGL, add a half pixel offset
+		"    vec2 uv=pos/u_texResolution+vec2(0.5,0.5)+vec2(0.5,0.5)/u_texResolution;",
+		"    vec4 color1=texture(u_image,mod(uv,1.0));",
+		"    vec4 color=texture(u_image,mod(uv+vec2(color1.b,0),1.0));",
+		"    float boxBase=color.g<0.5?1.:max(color.g*2.-1.,0.);",
+		"    float boxRatio=(1.-boxBase)*(1.-boxBase)*(1.-boxBase);",
+		"    float borderBase=abs(color.g*2.-1.);",
+		"    float borderRatio=(1.-borderBase)*(1.-borderBase)*(1.-borderBase);",
+		"    vec4 box=mix(vec4(0.125,0.125,0.125,1.0),vec4(1.0,0.5,0.0,1.0),boxRatio);",
+		"    vec4 border=mix(vec4(0.125,0.125,0.125,1.0),vec4(1.0,0.5,0.0,1.0),borderRatio);",
+		"    fragColor=color.r>0.75?box:color.r>0.25?border:vec4(0.0,0.0,0.0,1.0);",
+		//"    fragColor=color;",
 		"}",
 		].join("\n")
 		let program
 		let resolutionUL
 		let texResolutionUL
 		let imageUL
-		let shiftUL
 		let positionAL
 		let positionBuf
 		return {
@@ -325,21 +289,18 @@
 				gl.uniform2f(texResolutionUL,patternWidth,patternHeight)
 				imageUL=gl.getUniformLocation(program,"u_image")
 				gl.uniform1i(imageUL,0)
-				shiftUL=gl.getUniformLocation(program,"u_shift")
-				gl.uniform1f(shiftUL,0)
 				positionAL=gl.getAttribLocation(program,"a_position")
 				positionBuf=gl.createBuffer()
 				gl.bindBuffer(gl.ARRAY_BUFFER,positionBuf)
 				gl.bufferData(gl.ARRAY_BUFFER,rectPositions,gl.STATIC_DRAW)
 			},
-			draw:(resetSize,shift)=>{
+			draw:(resetSize)=>{
 				gl.useProgram(program)
 				if(resetSize){
 					gl.uniform2f(resolutionUL,gl.canvas.width,gl.canvas.height)
 				}
 				gl.bindFramebuffer(gl.FRAMEBUFFER,null)
 				gl.viewport(0,0,gl.canvas.width,gl.canvas.height)
-				gl.uniform1f(shiftUL,shift)
 				gl.enableVertexAttribArray(positionAL)
 				gl.bindBuffer(gl.ARRAY_BUFFER,positionBuf)
 				gl.vertexAttribPointer(positionAL,2,gl.FLOAT,false,0,0)
@@ -350,32 +311,25 @@
 	// app
 	const bga=(()=>{
 		const renderInterval=2
-		const shiftSpeed=100
-		let shift=0
 		let lastTime
 		let nextDraw
 		let patternFB
 		let patternTex
-		let deltaX=0
-		let deltaY=0
-		const nodes=new Array(cellCount).fill(null).map(()=>{
-			const cycleX=10+5*Math.random()
-			const cycleY=10+5*Math.random()
+		const shift=new Array(cellHeight).fill(null).map(()=>{
 			return {
-				x:Math.random()-0.5,
-				y:(Math.random()-0.5),
-				cycleX:cycleX,
-				cycleY:cycleY,
-				phaseX:cycleX*Math.random(),
-				phaseY:cycleY*Math.random(),
+				offset:Math.random(),
+				speed:(Math.random()-0.5)*6/100000,
 			}
 		})
-		const allNodes=new Float32Array(12*cellCount)
-		const allLNodes=new Float32Array(12*cellCount)
-		const allRNodes=new Float32Array(12*cellCount)
-		const allTNodes=new Float32Array(12*cellCount)
-		const allLTNodes=new Float32Array(12*cellCount)
-		const allRTNodes=new Float32Array(12*cellCount)
+		const phase=new Array(cellCount).fill(null).map(()=>{
+			const period=20000+5000*Math.random()
+			return {
+				offset:Math.random()*period,
+				period,
+			}
+		})
+		const allShifts=new Float32Array(6*cellCount)
+		const allPhases=new Float32Array(6*cellCount)
 		return {
 			start:()=>{
 				canvas.addEventListener("webglcontextlost",()=>{
@@ -384,18 +338,7 @@
 				canvas.addEventListener("webglcontextrestored",()=>{
 					bga.init()
 				})
-				if(!systemVar.isMobile){
-					addEventListener("mousemove",function(event){
-						deltaX=1-event.clientX*2/window.innerWidth
-						deltaY=1-event.clientY*2/window.innerHeight
-					})
-				}else{
-					addEventListener("deviceorientation",function(event){
-						deltaX=getRotatedZ(orientationMap[screen.orientation.angle][0][0],orientationMap[screen.orientation.angle][0][1],orientationMap[screen.orientation.angle][0][2],event.beta,event.gamma)
-						deltaY=getRotatedZ(orientationMap[screen.orientation.angle][1][0],orientationMap[screen.orientation.angle][1][1],orientationMap[screen.orientation.angle][1][2],event.beta,event.gamma)
-					})
-				}
-				lastTime=Date.now()
+				lastTime=getTime()
 				bga.init()
 			},
 			init:()=>{
@@ -410,51 +353,24 @@
 			draw:(frameId)=>{
 				const nextFrameId=(frameId+1)%renderInterval
 				const resetSize=checkCanvasSize()
+				const newTime=getTime()
 				if(frameId===0){
-					const newTime=Date.now()
-					shift+=(newTime-lastTime)/1000*(shiftSpeed+50*deltaY)
-					if(shift>patternHeight){
-						shift%=patternHeight
-					}
 					for(let y=0;y<cellHeight;y++){
+						shift[y].offset+=shift[y].speed*(newTime-lastTime)+1
+						shift[y].offset%=1
+						allShifts.fill(shift[y].offset,6*y*cellWidth,6*(y+1)*cellWidth)
 						for(let x=0;x<cellWidth;x++){
 							const i=x+y*cellWidth
-							const node=nodes[i]
-							node.phaseX+=(newTime-lastTime)/1000
-							if(node.phaseX>node.cycleX){
-								node.phaseX%=node.cycleX
-							}
-							node.phaseY+=(newTime-lastTime)/1000
-							if(node.phaseY>node.cycleY){
-								node.phaseY%=node.cycleY
-							}
-							const nodePos=[
-								Math.sin(Math.PI*2*node.phaseX/node.cycleX)/2,
-								Math.sin(Math.PI*2*node.phaseY/node.cycleY)/2,
-							]
-							for(let k=0;k<6;k++){
-								const lx=(x+cellWidth-1)%cellWidth
-								const rx=(x+1)%cellWidth
-								const by=(y+cellHeight-1)%cellHeight
-								const li=lx+y*cellWidth
-								const ri=rx+y*cellWidth
-								const lbi=lx+by*cellWidth
-								const bi=x+by*cellWidth
-								const rbi=rx+by*cellWidth
-								allNodes.set(nodePos,12*i+2*k)
-								allRNodes.set(nodePos,12*li+2*k)
-								allLNodes.set(nodePos,12*ri+2*k)
-								allTNodes.set(nodePos,12*bi+2*k)
-								allRTNodes.set(nodePos,12*lbi+2*k)
-								allLTNodes.set(nodePos,12*rbi+2*k)
-							}
+							phase[i].offset+=newTime-lastTime
+							phase[i].offset%=phase[i].period
+							allPhases.fill(Math.min(phase[i].offset/1000,1),6*i,6*(i+1))
 						}
 					}
+					pass1.draw({allShifts,allPhases})
+					pass2.draw(resetSize)
 					lastTime=newTime
-					pass1.draw({allNodes,allLNodes,allRNodes,allTNodes,allRTNodes,allLTNodes})
-					pass2.draw(resetSize,shift)
 				}else if(resetSize){
-					pass2.draw(resetSize,shift)
+					pass2.draw(resetSize)
 				}
 				nextDraw=requestAnimationFrame(()=>bga.draw(nextFrameId))
 			}
