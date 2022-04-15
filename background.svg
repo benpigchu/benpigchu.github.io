@@ -8,9 +8,7 @@
  <g>
   <g>
    <rect width="508" height="285.75"/>
-  </g>
-  <g stroke-width=".26458">
-   <g fill="#1f1f1f">
+   <g fill="#1f1f1f" stroke-width=".26458">
     <rect x="-11.642" y="5.2917" width="21.167" height="21.167"/>
     <rect x="20.108" y="5.2917" width="21.167" height="21.167"/>
     <rect x="51.858" y="5.2917" width="21.167" height="21.167"/>
@@ -174,7 +172,7 @@
     <rect x="-29.633" y="227.54" width="21.167" height="21.167"/>
     <rect x="-39.158" y="259.29" width="21.167" height="21.167"/>
    </g>
-   <g fill="#ff7f00">
+   <g fill="#ff7f00" stroke-width=".26458">
     <path d="m185.21 132.29v21.167h21.167v-21.167zm1.0583 1.0583h19.05v19.05h-19.05z" fill-opacity=".75"/>
     <path d="m104.78 37.042v21.167h21.167v-21.167zm1.0583 1.0583h19.05v19.05h-19.05z" fill-opacity=".25"/>
     <path d="m341.84 259.29v21.167h21.167v-21.167zm1.0583 1.0583h19.05v19.05h-19.05z" fill-opacity=".5"/>
@@ -183,7 +181,7 @@
     <rect x="288.93" y="100.54" width="21.167" height="21.167" fill-opacity=".5"/>
     <rect x="8.4667" y="164.04" width="21.167" height="21.167" fill-opacity=".25"/>
     <rect x="462.49" y="195.79" width="21.167" height="21.167" fill-opacity=".75"/>
-    <rect x="473.07" y="68.792" width="21.167" height="21.167" fill-opacity=".25"/>
+    <rect x="475.19" y="68.792" width="21.167" height="21.167" fill-opacity=".25"/>
     <path d="m390.52 37.042v21.167h21.167v-21.167zm1.0583 1.0583h19.05v19.05h-19.05z" fill-opacity=".75"/>
     <rect x="51.858" y="5.2917" width="21.167" height="21.167" fill-opacity=".5"/>
     <rect x="160.87" y="227.54" width="21.167" height="21.167" fill-opacity=".75"/>
@@ -193,14 +191,12 @@
  <g display="none">
   <g display="inline">
    <g fill="#ff7f00">
-    <rect transform="rotate(-14.685)" x="188.35" y="181.31" width="42.333" height="42.333" display="inline" fill-rule="evenodd"/>
-    <g>
-     <rect transform="rotate(-14.685)" x="188.35" y="181.31" width="42.333" height="42.333" display="inline" fill-rule="evenodd" stroke="#000" stroke-linecap="square" stroke-width="1.5875"/>
-     <text transform="rotate(-14.685)" x="230.16689" y="230.69145" display="inline" font-family="'Museo Sans'" font-size="3.175px" letter-spacing="0px" stroke="#000000" stroke-width="1.5875" word-spacing="0px" style="line-height:0%" xml:space="preserve"><tspan x="230.68547" y="230.69145" font-family="'Museo Sans'" font-size="6.6146px" letter-spacing=".51858px" stroke="#000000" stroke-width="1.5875" text-align="end" text-anchor="end" style="line-height:125%">Shift</tspan></text>
-     <text transform="rotate(-14.685)" x="230.16689" y="230.69145" display="inline" font-family="'Museo Sans'" font-size="3.175px" letter-spacing="0px" stroke="#ff7f00" stroke-width="0" word-spacing="0px" style="line-height:0%" xml:space="preserve"><tspan x="230.68547" y="230.69145" font-family="'Museo Sans'" font-size="6.6146px" letter-spacing=".51858px" stroke="#ff7f00" stroke-width="0" text-align="end" text-anchor="end" style="line-height:125%">Shift</tspan></text>
-    </g>
+    <rect transform="rotate(-15)" x="187.2" y="182.58" width="42.333" height="42.333" stop-color="#000000" stroke="#000" stroke-linecap="square" stroke-width="1.5875" style="-inkscape-stroke:none;font-variation-settings:normal"/>
+    <text transform="rotate(-15.092)" x="228.72075" y="232.17615" display="inline" font-family="'Museo Sans'" font-size="3.175px" letter-spacing="0px" stroke="#000000" stroke-width="1.5875" word-spacing="0px" style="line-height:0%" xml:space="preserve"><tspan x="229.23933" y="232.17615" font-family="'Museo Sans'" font-size="6.6146px" letter-spacing=".51858px" stroke="#000000" stroke-width="1.5875" text-align="end" text-anchor="end" style="line-height:125%">Shift</tspan></text>
+    <text transform="rotate(-15.092)" x="228.72075" y="232.17615" display="inline" font-family="'Museo Sans'" font-size="3.175px" letter-spacing="0px" stroke="#ff7f00" stroke-width="0" word-spacing="0px" style="line-height:0%" xml:space="preserve"><tspan x="229.23933" y="232.17615" font-family="'Museo Sans'" font-size="6.6146px" letter-spacing=".51858px" stroke="#ff7f00" stroke-width="0" text-align="end" text-anchor="end" style="line-height:125%">Shift</tspan></text>
    </g>
-   <text transform="rotate(-14.685)" x="192.06721" y="192.78604" display="inline" fill="#000000" font-family="'Museo Sans'" font-size="10.583px" letter-spacing="2.921px" stroke-width="0" word-spacing="0px" style="line-height:0%" xml:space="preserve"><tspan x="192.06721" y="192.78604" style="line-height:1.25">Ben</tspan><tspan x="192.06721" y="206.01517" style="line-height:1.25">Pig</tspan><tspan x="192.06721" y="219.24429" style="line-height:1.25">Chu</tspan></text>
+   <text transform="rotate(-15.092)" x="190.62108" y="194.27074" display="inline" fill="#000000" font-family="'Museo Sans'" font-size="10.583px" letter-spacing="2.921px" stroke-width="0" word-spacing="0px" style="line-height:0%" xml:space="preserve"><tspan x="190.62108" y="194.27074" style="line-height:1.25">Ben</tspan><tspan x="190.62108" y="207.49986" style="line-height:1.25">Pig</tspan><tspan x="190.62108" y="220.72899" style="line-height:1.25">Chu</tspan></text>
+   <path transform="scale(.26458)" d="m1014.4 445.69-148.75 39.859 39.859 148.75 148.75-39.859zm-4.2422 7.3496 36.752 137.16-137.16 36.752-36.752-137.16z" color="#000000" fill="#ff7f00" stroke-linecap="square" stroke-width="6" style="-inkscape-stroke:none"/>
   </g>
  </g>
 </svg>
