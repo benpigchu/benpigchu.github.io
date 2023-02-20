@@ -16,21 +16,17 @@
 	#canvas{position:absolute}
 	a{position:absolute;z-index:3}
 	#logo{position:absolute;width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto}
-	#logo-outline{position:absolute;background-image:url("outline.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-outline-intro;animation-duration:1000ms;animation-timing-function:cubic-bezier(0.55, 0.06, 0.68, 0.19)}
-	#logo-square{position:absolute;background-image:url("square.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-square-intro;animation-duration:1000ms;animation-timing-function:cubic-bezier(0.55, 0.06, 0.68, 0.19)}
-	#logo-detail{position:absolute;background-image:url("detail.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-detail-intro;animation-duration:1000ms;animation-timing-function:cubic-bezier(0.22, 0.61, 0.36, 1)}
-	@keyframes logo-outline-intro{
-		0%{opacity:0}
-		40%{opacity:1}
-	}
+	#logo-square{position:absolute;background-image:url("square.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-square-intro;animation-duration:1000ms;animation-timing-function:ease-in-out}
+	#logo-detail{position:absolute;background-image:url("detail.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-detail-intro;animation-duration:1000ms;animation-timing-function:ease-in-out}
 	@keyframes logo-square-intro{
-		0%{visibility:hidden}
-		40%{visibility:hidden}
-		100%{visibility:visible}
+		0%{opacity:0;transform:rotate(-30deg);}
+		40%{opacity:1;transform:rotate(-30deg);}
+		80%{opacity:1;transform:rotate(0);}
+		100%{opacity:1}
 	}
 	@keyframes logo-detail-intro{
 		0%{opacity:0}
-		40%{opacity:0}
+		80%{opacity:0}
 		100%{opacity:1}
 	}
 </style>
@@ -50,9 +46,9 @@
 	const systemVar={}
 	systemVar.isMobile=(navigator.userAgent.match(/Android/i)?true:false)||(navigator.userAgent.match(/BlackBerry/i)?true:false)||(navigator.userAgent.match(/iPhone|iPad|iPod/i)?true:false)||(navigator.userAgent.match(/IEMobile/i)?true:false)
 	// const
-	const cellSize=120
-	const cellWidth=16
-	const cellHeight=9
+	const cellSize=240
+	const cellWidth=8
+	const cellHeight=6
 	const cellCount=cellWidth*cellHeight
 	const patternWidth=cellSize*cellWidth
 	const patternHeight=cellSize*cellHeight
@@ -131,17 +127,14 @@
 		"uniform vec2 u_dimension;",
 		"in vec2 a_position;",
 		"in vec2 a_cell;",
-		"in float a_shift;",
 		"in float a_phase;",
 		"out vec2 v_position;",
-		"out float v_shift;",
 		"out float v_phase;",
 		"void main(){",
 		"    vec2 interval=vec2(1.0,1.0)/u_dimension;",
 		"    vec2 base=interval*a_cell;",
 		"    vec2 pos=base*2.0+(a_position+vec2(1.0,1.0))*interval-vec2(1.0,1.0);",
 		"    v_position=a_position;",
-		"    v_shift=a_shift;",
 		"    v_phase=a_phase;",
 		"    gl_Position=vec4(pos,0.0,1);",
 		"}",
@@ -150,15 +143,25 @@
 		"#version 300 es",
 		"precision highp float;",
 		"in vec2 v_position;",
-		"in float v_shift;",
 		"in float v_phase;",
-		"uniform vec2 u_size;",
-		"uniform vec2 u_border;",
 		"out vec4 fragColor;",
 		"void main(){",
-		"    bool box=all(lessThan(abs(v_position),u_size+0.001));",
-		"    bool inner=all(lessThan(abs(v_position),u_size-u_border+0.001));",
-		"    fragColor=vec4(box?inner?1.0:0.5:0.0,v_phase,v_shift,1.0);",
+		"    float r=radians(v_phase*360.);",
+		"    float c=cos(r);",
+		"    float s=sin(r);",
+		"    vec2 rotated=mat2(c,-s,s,c)*v_position;",
+		"    bool leaf=all(lessThan(abs(rotated),vec2(152./240.,152./240.)))&&!all(greaterThan(abs(rotated),vec2(24./240.,24./240.)));",
+		"    bool board=length(v_position)<(168./240.);",
+		"    bool connect=!all(greaterThan(abs(v_position),vec2(24./240.,24./240.)));",
+		"    bool frame=all(lessThan(abs(v_position),vec2(204./240.,204./240.)));",
+		"    fragColor=vec4((",
+		"        leaf?vec3(3.,3.,3.):",
+		"        board&&connect?vec3(2.,2.,2.):",
+		"        board?vec3(1.,1.,1.):",
+		"        frame?vec3(3.,3.,3.):",
+		"        connect?vec3(2.,2.,2.):",
+		"            vec3(0.,0.,0.)",
+		"    )/16.,1.0);",
 		"}",
 		].join("\n")
 		const allRectPositions=(()=>{
@@ -185,13 +188,9 @@
 		let program
 		let positionAL
 		let positionBuf
-		let shiftAL
-		let shiftBuf
 		let phaseAL
 		let phaseBuf
 		let dimensionUL
-		let sizeUL
-		let borderUL
 		return {
 			init:(appPatternFB)=>{
 				patternFB=appPatternFB
@@ -199,10 +198,6 @@
 				gl.useProgram(program)
 				dimensionUL=gl.getUniformLocation(program,"u_dimension")
 				gl.uniform2f(dimensionUL,cellWidth,cellHeight)
-				sizeUL=gl.getUniformLocation(program,"u_size")
-				gl.uniform2f(sizeUL,80/120,80/120)
-				borderUL=gl.getUniformLocation(program,"u_border")
-				gl.uniform2f(borderUL,8/120,8/120)
 				positionAL=gl.getAttribLocation(program,"a_position")
 				positionBuf=gl.createBuffer()
 				gl.bindBuffer(gl.ARRAY_BUFFER,positionBuf)
@@ -211,14 +206,11 @@
 				cellBuf=gl.createBuffer()
 				gl.bindBuffer(gl.ARRAY_BUFFER,cellBuf)
 				gl.bufferData(gl.ARRAY_BUFFER,allCells,gl.STATIC_DRAW)
-				shiftAL=gl.getAttribLocation(program,"a_shift")
-				shiftBuf=gl.createBuffer()
-				gl.bindBuffer(gl.ARRAY_BUFFER,shiftBuf)
 				phaseAL=gl.getAttribLocation(program,"a_phase")
 				phaseBuf=gl.createBuffer()
 				gl.bindBuffer(gl.ARRAY_BUFFER,phaseBuf)
 			},
-			draw:({allShifts,allPhases})=>{
+			draw:({allPhases})=>{
 				gl.useProgram(program)
 				gl.bindFramebuffer(gl.FRAMEBUFFER,patternFB)
 				gl.viewport(0,0,patternWidth,patternHeight)
@@ -228,10 +220,6 @@
 				gl.enableVertexAttribArray(cellAL)
 				gl.bindBuffer(gl.ARRAY_BUFFER,cellBuf)
 				gl.vertexAttribPointer(cellAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(shiftAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,shiftBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allShifts,gl.STATIC_DRAW)
-				gl.vertexAttribPointer(shiftAL,1,gl.FLOAT,false,0,0)
 				gl.enableVertexAttribArray(phaseAL)
 				gl.bindBuffer(gl.ARRAY_BUFFER,phaseBuf)
 				gl.bufferData(gl.ARRAY_BUFFER,allPhases,gl.STATIC_DRAW)
@@ -260,17 +248,9 @@
 		"void main(){",
 		"    vec2 pos=(gl_FragCoord.xy-(u_resolution)/2.0);",
 		// For Pixel Perfect on WebGL, add a half pixel offset
-		"    vec2 uv=pos/u_texResolution+vec2(0.5,0.5)+vec2(0.5,0.5)/u_texResolution;",
-		"    vec4 color1=texture(u_image,mod(uv,1.0));",
-		"    vec4 color=texture(u_image,mod(uv+vec2(color1.b,0),1.0));",
-		"    float boxBase=color.g<0.5?1.:max(color.g*2.-1.,0.);",
-		"    float boxRatio=(1.-boxBase)*(1.-boxBase)*(1.-boxBase);",
-		"    float borderBase=abs(color.g*2.-1.);",
-		"    float borderRatio=(1.-borderBase)*(1.-borderBase)*(1.-borderBase);",
-		"    vec4 box=mix(vec4(0.125,0.125,0.125,1.0),vec4(1.0,0.5,0.0,1.0),boxRatio);",
-		"    vec4 border=mix(vec4(0.125,0.125,0.125,1.0),vec4(1.0,0.5,0.0,1.0),borderRatio);",
-		"    fragColor=color.r>0.75?box:color.r>0.25?border:vec4(0.0,0.0,0.0,1.0);",
-		//"    fragColor=color;",
+		"    vec2 uv=pos/u_texResolution+vec2(0.5,0.5)/u_texResolution;",
+		"    vec4 color=texture(u_image,mod(uv,1.0));",
+		"    fragColor=color;",
 		"}",
 		].join("\n")
 		let program
@@ -310,25 +290,18 @@
 	})()
 	// app
 	const bga=(()=>{
-		const renderInterval=2
+		const renderInterval=1
 		let lastTime
 		let nextDraw
 		let patternFB
 		let patternTex
-		const shift=new Array(cellHeight).fill(null).map(()=>{
-			return {
-				offset:Math.random(),
-				speed:(Math.random()-0.5)*6/100000,
-			}
-		})
 		const phase=new Array(cellCount).fill(null).map(()=>{
-			const period=20000+5000*Math.random()
+			const period=10000+5000*Math.random()
 			return {
 				offset:Math.random()*period,
 				period,
 			}
 		})
-		const allShifts=new Float32Array(6*cellCount)
 		const allPhases=new Float32Array(6*cellCount)
 		return {
 			start:()=>{
@@ -356,17 +329,14 @@
 				const newTime=getTime()
 				if(frameId===0){
 					for(let y=0;y<cellHeight;y++){
-						shift[y].offset+=shift[y].speed*(newTime-lastTime)+1
-						shift[y].offset%=1
-						allShifts.fill(shift[y].offset,6*y*cellWidth,6*(y+1)*cellWidth)
 						for(let x=0;x<cellWidth;x++){
 							const i=x+y*cellWidth
 							phase[i].offset+=newTime-lastTime
 							phase[i].offset%=phase[i].period
-							allPhases.fill(Math.min(phase[i].offset/1000,1),6*i,6*(i+1))
+							allPhases.fill(-phase[i].offset/phase[i].period,6*i,6*(i+1))
 						}
 					}
-					pass1.draw({allShifts,allPhases})
+					pass1.draw({allPhases})
 					pass2.draw(resetSize)
 					lastTime=newTime
 				}else if(resetSize){
