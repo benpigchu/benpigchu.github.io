@@ -16,8 +16,8 @@
 	#canvas{position:absolute}
 	a{position:absolute;z-index:3}
 	#logo{position:absolute;width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto}
-	#logo-square{position:absolute;background-image:url("square.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-square-intro;animation-duration:1000ms;animation-timing-function:ease-in-out}
-	#logo-detail{position:absolute;background-image:url("detail.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-detail-intro;animation-duration:1000ms;animation-timing-function:ease-in-out}
+	#logo-square{position:absolute;background-image:url("square.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-square-intro;animation-duration:1200ms;animation-timing-function:ease-in-out}
+	#logo-detail{position:absolute;background-image:url("detail.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-detail-intro;animation-duration:1200ms;animation-timing-function:ease-in-out}
 	@keyframes logo-square-intro{
 		0%{opacity:0;transform:rotate(-30deg);}
 		40%{opacity:1;transform:rotate(-30deg);}
@@ -35,7 +35,6 @@
 		<a href="https://benpigchu.com"></a>
 		<canvas id="canvas"></canvas>
 		<div id="logo">
-			<div id="logo-outline"></div>
 			<div id="logo-square"></div>
 			<div id="logo-detail"></div>
 		</div>
@@ -43,22 +42,15 @@
 </body>
 <script>
 	//<![CDATA[
-	const systemVar={}
-	systemVar.isMobile=(navigator.userAgent.match(/Android/i)?true:false)||(navigator.userAgent.match(/BlackBerry/i)?true:false)||(navigator.userAgent.match(/iPhone|iPad|iPod/i)?true:false)||(navigator.userAgent.match(/IEMobile/i)?true:false)
 	// const
-	const cellSize=240
-	const cellWidth=8
-	const cellHeight=6
+	const cellSize=80
+	const cellWidth=24
+	const cellHeight=18
 	const cellCount=cellWidth*cellHeight
 	const patternWidth=cellSize*cellWidth
 	const patternHeight=cellSize*cellHeight
-	const rectPositions=new Float32Array([-1,-1,-1,1,1,-1,1,-1,-1,1,1,1])
 	const canvas=document.getElementById("canvas")
-	const gl=canvas.getContext("webgl2")
-	const colorBufferFloat=gl.getExtension("EXT_color_buffer_float")
-	if(!colorBufferFloat){
-		throw new Error("EXT_color_buffer_float webgl2 extension is not available")
-	}
+	const context=canvas.getContext("webgpu")
 	// util
 	const getTime=()=>{
 		if(performance){
@@ -75,216 +67,257 @@
 		}
 		return false
 	}
-	const makeShader=(code,type)=>{
-		const shader=gl.createShader(type)
-		gl.shaderSource(shader,code)
-		gl.compileShader(shader)
-		if(gl.getShaderParameter(shader,gl.COMPILE_STATUS)){
-			return shader
-		}else if(gl.isContextLost()){
-			// silently fail for context lost
-			return null
-		}else{
-			let error=new Error("shader init failed: "+gl.getShaderInfoLog(shader))
-			gl.deleteShader(shader)
-			throw error
-		}
-	}
-	const makeProgram=function(vertex,fragment){
-		const program=gl.createProgram()
-		gl.attachShader(program,vertex)
-		gl.attachShader(program,fragment)
-		gl.linkProgram(program)
-		if(gl.getProgramParameter(program,gl.LINK_STATUS)){
-			return program
-		}else if(gl.isContextLost()){
-			// silently fail for context lost
-			return null
-		}else{
-			let error=new Error("program init failed: "+gl.getProgramInfoLog(program))
-			gl.deleteProgram(program)
-			throw error
-		}
-	}
-	const setupFbTexture=(fb,tex,id,width,height)=>{
-		gl.bindFramebuffer(gl.FRAMEBUFFER,fb)
-		gl.activeTexture(gl["TEXTURE"+id])
-		gl.bindTexture(gl.TEXTURE_2D,tex)
-		// wrap
-		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.REPEAT)
-		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.REPEAT)
-		// pixel perfect
-		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST)
-		gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST)
-		gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA32F,width,height,0,gl.RGBA,gl.FLOAT,null)
-		gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0)
-	}
-	// pass
+	// pass1
 	const pass1=(()=>{
-		const vertex=[
-		"#version 300 es",
-		"precision highp float;",
-		"uniform vec2 u_dimension;",
-		"in vec2 a_position;",
-		"in vec2 a_cell;",
-		"in float a_phase;",
-		"out vec2 v_position;",
-		"out float v_phase;",
-		"void main(){",
-		"    vec2 interval=vec2(1.0,1.0)/u_dimension;",
-		"    vec2 base=interval*a_cell;",
-		"    vec2 pos=base*2.0+(a_position+vec2(1.0,1.0))*interval-vec2(1.0,1.0);",
-		"    v_position=a_position;",
-		"    v_phase=a_phase;",
-		"    gl_Position=vec4(pos,0.0,1);",
-		"}",
-		].join("\n")
-		const fragment=[
-		"#version 300 es",
-		"precision highp float;",
-		"in vec2 v_position;",
-		"in float v_phase;",
-		"out vec4 fragColor;",
-		"void main(){",
-		"    float r=radians(v_phase*360.);",
-		"    float c=cos(r);",
-		"    float s=sin(r);",
-		"    vec2 rotated=mat2(c,-s,s,c)*v_position;",
-		"    bool leaf=all(lessThan(abs(rotated),vec2(152./240.,152./240.)))&&!all(greaterThan(abs(rotated),vec2(24./240.,24./240.)));",
-		"    bool board=length(v_position)<(168./240.);",
-		"    bool connect=!all(greaterThan(abs(v_position),vec2(24./240.,24./240.)));",
-		"    bool frame=all(lessThan(abs(v_position),vec2(204./240.,204./240.)));",
-		"    fragColor=vec4((",
-		"        leaf?vec3(3.,3.,3.):",
-		"        board&&connect?vec3(2.,2.,2.):",
-		"        board?vec3(1.,1.,1.):",
-		"        frame?vec3(3.,3.,3.):",
-		"        connect?vec3(2.,2.,2.):",
-		"            vec3(0.,0.,0.)",
-		"    )/16.,1.0);",
-		"}",
-		].join("\n")
-		const allRectPositions=(()=>{
-			const result=new Float32Array(rectPositions.length*cellCount)
-			for(let i=0;i<cellCount;i++){
-				result.set(rectPositions,rectPositions.length*i)
+		const shader=`
+		override cell_width:u32;
+		override cell_height:u32;
+		@group(0)@binding(0)var<uniform> progress:f32;
+		@group(0)@binding(1)var<storage,read> checkerboardA:array<f32>;
+		@group(0)@binding(2)var<storage,read> checkerboardB:array<f32>;
+
+		struct VSOutput{
+			@builtin(position)pos:vec4f,
+			@location(0)coord:vec2f,
+			@location(1)checkerboard:f32,
+			@location(2)flipped:f32,
+		};
+
+		@vertex fn vs(
+			@builtin(vertex_index)vertexIndex:u32,
+			@builtin(instance_index)instanceIndex:u32,
+		) -> VSOutput{
+			let pos=array(
+				vec2f(0.,0.),
+				vec2f(0.,1.),
+				vec2f(1.,0.),
+				vec2f(0.,1.),
+				vec2f(1.,0.),
+				vec2f(1.,1.),
+			);
+			var output:VSOutput;
+			let cell_x=instanceIndex%cell_width;
+			let cell_y=instanceIndex/cell_width;
+			let checkerboard=(cell_x+cell_y)%2==0;
+			let location=(pos[vertexIndex]+vec2f(f32(cell_x),f32(cell_y)))/vec2f(f32(cell_width),f32(cell_height));
+			output.pos=vec4f(location*2.-1.,0.0,1.0);
+			output.coord=pos[vertexIndex];
+			output.checkerboard=f32(checkerboard);
+			output.flipped=select(checkerboardA[instanceIndex/2],checkerboardB[instanceIndex/2],checkerboard);
+			return output;
+		}
+
+		@fragment fn fs(
+			input:VSOutput
+		)->@location(0)vec4f{
+			var coord=input.coord;
+			if input.flipped>0.5 {
+				coord.x=1.-coord.x;
 			}
-			return result
-		})()
-		const allCells=(()=>{
-			const result=new Float32Array(12*cellCount)
-			for(let y=0;y<cellHeight;y++){
-				for(let x=0;x<cellWidth;x++){
-					const i=x+y*cellWidth
-					for(let z=0;z<6;z++){
-						result[12*i+2*z]=x
-						result[12*i+2*z+1]=y
-					}
-				}
+			if coord.x+coord.y>1. {
+				coord=1.-coord;
 			}
-			return result
-		})()
-		let patternFB
-		let program
-		let positionAL
-		let positionBuf
-		let phaseAL
-		let phaseBuf
-		let dimensionUL
+			if bool(input.checkerboard) {
+				coord=coord.yx;
+			}
+			let ring=abs(length(coord)-0.5)<=0.1+0.001;
+			let angle=degrees(atan2(coord.y,coord.x))/180+0.25;
+			let center=select(progress,fract(progress+0.5),bool(input.checkerboard));
+			let light=abs(angle-center)<=0.25+0.001;
+			var dot_coord=min(input.coord,1.-input.coord);
+			let dot=length(dot_coord)<=0.2+0.001;
+			return select(
+				select(vec4f(0.0,0.0,0.0,1.0),vec4f(1.0/4.,1.0/4,1.0/4,1.0),dot),
+				vec4f(1.0/2.,0.5/2.,0.0,1.0),
+				ring&&light
+			);
+		}
+		`
+		let module
+		let pipeline
+		let progressBuffer
+		let checkerboardABuffer
+		let checkerboardBBuffer
+		let bindGroup
 		return {
-			init:(appPatternFB)=>{
-				patternFB=appPatternFB
-				program=makeProgram(makeShader(vertex,gl.VERTEX_SHADER),makeShader(fragment,gl.FRAGMENT_SHADER))
-				gl.useProgram(program)
-				dimensionUL=gl.getUniformLocation(program,"u_dimension")
-				gl.uniform2f(dimensionUL,cellWidth,cellHeight)
-				positionAL=gl.getAttribLocation(program,"a_position")
-				positionBuf=gl.createBuffer()
-				gl.bindBuffer(gl.ARRAY_BUFFER,positionBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allRectPositions,gl.STATIC_DRAW)
-				cellAL=gl.getAttribLocation(program,"a_cell")
-				cellBuf=gl.createBuffer()
-				gl.bindBuffer(gl.ARRAY_BUFFER,cellBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allCells,gl.STATIC_DRAW)
-				phaseAL=gl.getAttribLocation(program,"a_phase")
-				phaseBuf=gl.createBuffer()
-				gl.bindBuffer(gl.ARRAY_BUFFER,phaseBuf)
+			init:({device,format})=>{
+				module=device.createShaderModule({
+					label:"pass1",
+					code:shader
+				})
+				pipeline=device.createRenderPipeline({
+					label:"pass1",
+					layout:"auto",
+					vertex:{
+						module,
+						entryPoint:"vs",
+						constants:{
+							cell_width:cellWidth,
+							cell_height:cellHeight,
+						}
+					},
+					fragment:{
+						module,
+						entryPoint:"fs",
+						targets:[{format}]
+					}
+				})
+				progressBuffer=device.createBuffer({
+					size:4,
+					usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST,
+				})
+				checkerboardABuffer=device.createBuffer({
+					size:4*cellCount/2,
+					usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST,
+				})
+				checkerboardBBuffer=device.createBuffer({
+					size:4*cellCount/2,
+					usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST,
+				})
+				bindGroup=device.createBindGroup({
+					label:"pass1",
+					layout:pipeline.getBindGroupLayout(0),
+					entries:[
+						{binding:0,resource:{buffer:progressBuffer}},
+						{binding:1,resource:{buffer:checkerboardABuffer}},
+						{binding:2,resource:{buffer:checkerboardBBuffer}},
+					],
+				})
 			},
-			draw:({allPhases})=>{
-				gl.useProgram(program)
-				gl.bindFramebuffer(gl.FRAMEBUFFER,patternFB)
-				gl.viewport(0,0,patternWidth,patternHeight)
-				gl.enableVertexAttribArray(positionAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,positionBuf)
-				gl.vertexAttribPointer(positionAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(cellAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,cellBuf)
-				gl.vertexAttribPointer(cellAL,2,gl.FLOAT,false,0,0)
-				gl.enableVertexAttribArray(phaseAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,phaseBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,allPhases,gl.STATIC_DRAW)
-				gl.vertexAttribPointer(phaseAL,1,gl.FLOAT,false,0,0)
-				gl.drawArrays(gl.TRIANGLES,0,6*cellCount)
+			draw:({device,encoder,framebuffer,progressValues,checkerboardAValues,checkerboardBValues,needUpdateCheckerboardA,needUpdateCheckerboardB})=>{
+				if(needUpdateCheckerboardA){
+					device.queue.writeBuffer(checkerboardABuffer,0,checkerboardAValues)
+				}
+				if(needUpdateCheckerboardB){
+					device.queue.writeBuffer(checkerboardBBuffer,0,checkerboardBValues)
+				}
+				device.queue.writeBuffer(progressBuffer,0,progressValues)
+				const passDescriptor={
+					label:"pass1",
+					colorAttachments:[
+						{
+							clearValue:[0,0,0,1],
+							loadOp:'clear',
+							storeOp:'store',
+							view:framebuffer.createView()
+						},
+					],
+				}
+				const pass=encoder.beginRenderPass(passDescriptor);
+				pass.setPipeline(pipeline)
+				pass.setBindGroup(0,bindGroup)
+				pass.draw(6,cellCount)
+				pass.end()
 			}
 		}
 	})()
+	// pass2
 	const pass2=(()=>{
-		const vertex=[
-		"#version 300 es",
-		"precision highp float;",
-		"in vec2 a_position;",
-		"void main(){",
-		"    gl_Position=vec4(a_position,0,1);",
-		"}",
-		].join("\n")
-		const fragment=[
-		"#version 300 es",
-		"precision highp float;",
-		"precision highp sampler2D;",
-		"uniform sampler2D u_image;",
-		"uniform vec2 u_resolution;",
-		"uniform vec2 u_texResolution;",
-		"out vec4 fragColor;",
-		"void main(){",
-		"    vec2 pos=(gl_FragCoord.xy-(u_resolution)/2.0);",
-		// For Pixel Perfect on WebGL, add a half pixel offset
-		"    vec2 uv=pos/u_texResolution+vec2(0.5,0.5)/u_texResolution;",
-		"    vec4 color=texture(u_image,mod(uv,1.0));",
-		"    fragColor=color;",
-		"}",
-		].join("\n")
-		let program
-		let resolutionUL
-		let texResolutionUL
-		let imageUL
-		let positionAL
-		let positionBuf
+		const shader=`
+		@group(0)@binding(0)var<uniform> resolution:vec2f;
+		@group(0)@binding(1)var<uniform> tex_resolution:vec2f;
+		@group(0)@binding(2)var fb_sampler:sampler;
+		@group(0)@binding(3)var fb:texture_2d<f32>;
+
+		@vertex fn vs(
+			@builtin(vertex_index)vertexIndex:u32
+		) -> @builtin(position)vec4f{
+			let pos=array(
+				vec2f(-1.,-1.),
+				vec2f(-1.,1.),
+				vec2f(1.,-1.),
+				vec2f(-1.,1.),
+				vec2f(1.,-1.),
+				vec2f(1.,1.),
+			);
+			return vec4f(pos[vertexIndex],0.0,1.0);
+		}
+
+		@fragment fn fs(
+			@builtin(position)pos:vec4f
+		)->@location(0)vec4f{
+			// add half pixel, convert from pixel index to pixel center position
+			// also add a small value to avoid exact half pixel rounding issue
+			let coord=pos.xy+0.5+0.001;
+			let uv=fract((coord-resolution/2.)/tex_resolution+.5);
+			return textureSample(fb,fb_sampler,uv);
+		}
+		`
+		let module
+		let pipeline
+		let sampler
+		let resolutionBuffer
+		let texResolutionBuffer
+		let bindGroup
+		const resolutionValues=new Float32Array(2)
+		const texResolutionValues=new Float32Array([patternWidth,patternHeight])
 		return {
-			init:()=>{
-				program=makeProgram(makeShader(vertex,gl.VERTEX_SHADER),makeShader(fragment,gl.FRAGMENT_SHADER))
-				gl.useProgram(program)
-				resolutionUL=gl.getUniformLocation(program,"u_resolution")
-				gl.uniform2f(resolutionUL,gl.canvas.width,gl.canvas.height)
-				texResolutionUL=gl.getUniformLocation(program,"u_texResolution")
-				gl.uniform2f(texResolutionUL,patternWidth,patternHeight)
-				imageUL=gl.getUniformLocation(program,"u_image")
-				gl.uniform1i(imageUL,0)
-				positionAL=gl.getAttribLocation(program,"a_position")
-				positionBuf=gl.createBuffer()
-				gl.bindBuffer(gl.ARRAY_BUFFER,positionBuf)
-				gl.bufferData(gl.ARRAY_BUFFER,rectPositions,gl.STATIC_DRAW)
+			init:({device,format,framebuffer})=>{
+				module=device.createShaderModule({
+					label:"pass2",
+					code:shader
+				})
+				pipeline=device.createRenderPipeline({
+					label:"pass2",
+					layout:"auto",
+					vertex:{
+						module,
+						entryPoint:"vs",
+					},
+					fragment:{
+						module,
+						entryPoint:"fs",
+						targets:[{format}],
+					},
+				})
+				resolutionBuffer=device.createBuffer({
+					size:2*4,
+					usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST,
+				})
+				resolutionValues[0]=canvas.width
+				resolutionValues[1]=canvas.height
+				device.queue.writeBuffer(resolutionBuffer,0,resolutionValues)
+				texResolutionBuffer=device.createBuffer({
+					size:2*4,
+					usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST,
+				})
+				device.queue.writeBuffer(texResolutionBuffer,0,texResolutionValues)
+				sampler=device.createSampler({
+					label:"pass2-fb",
+				})
+				bindGroup=device.createBindGroup({
+					label:"pass2",
+					layout:pipeline.getBindGroupLayout(0),
+					entries:[
+						{binding:0,resource:{buffer:resolutionBuffer}},
+						{binding:1,resource:{buffer:texResolutionBuffer}},
+						{binding:2,resource:sampler},
+						{binding:3,resource:framebuffer.createView()},
+					],
+				})
 			},
-			draw:(resetSize)=>{
-				gl.useProgram(program)
+			draw:({device,encoder,resetSize})=>{
 				if(resetSize){
-					gl.uniform2f(resolutionUL,gl.canvas.width,gl.canvas.height)
+					resolutionValues[0]=canvas.width
+					resolutionValues[1]=canvas.height
+					device.queue.writeBuffer(resolutionBuffer,0,resolutionValues)
 				}
-				gl.bindFramebuffer(gl.FRAMEBUFFER,null)
-				gl.viewport(0,0,gl.canvas.width,gl.canvas.height)
-				gl.enableVertexAttribArray(positionAL)
-				gl.bindBuffer(gl.ARRAY_BUFFER,positionBuf)
-				gl.vertexAttribPointer(positionAL,2,gl.FLOAT,false,0,0)
-				gl.drawArrays(gl.TRIANGLES,0,6)
+				const passDescriptor={
+					label:"pass2",
+					colorAttachments:[
+						{
+							clearValue:[0,0,0,1],
+							loadOp:'clear',
+							storeOp:'store',
+							view:context.getCurrentTexture().createView()
+						},
+					],
+				}
+				const pass=encoder.beginRenderPass(passDescriptor);
+				pass.setPipeline(pipeline)
+				pass.setBindGroup(0,bindGroup)
+				pass.draw(6)
+				pass.end()
 			}
 		}
 	})()
@@ -293,60 +326,85 @@
 		const renderInterval=1
 		let lastTime
 		let nextDraw
-		let patternFB
-		let patternTex
-		const phase=new Array(cellCount).fill(null).map(()=>{
-			const period=10000+5000*Math.random()
-			return {
-				offset:Math.random()*period,
-				period,
+		let device
+		let framebuffer
+		const progressValues=new Float32Array(1)
+		let needUpdateCheckerboardA=true
+		let needUpdateCheckerboardB=true
+		const checkerboardAValues=new Float32Array(cellCount/2)
+		const checkerboardBValues=new Float32Array(cellCount/2)
+		const resetCheckerboard=(checkerboard)=>{
+			for(let i=0;i<checkerboard.length;i++){
+				checkerboard[i]=Math.random()>0.5?0:1
 			}
-		})
-		const allPhases=new Float32Array(6*cellCount)
+		}
 		return {
-			start:()=>{
-				canvas.addEventListener("webglcontextlost",()=>{
-					cancelAnimationFrame(nextDraw)
-				})
-				canvas.addEventListener("webglcontextrestored",()=>{
-					bga.init()
-				})
+			start:async ()=>{
 				lastTime=getTime()
+				progressValues[0]=Math.random()
+				resetCheckerboard(checkerboardAValues)
+				resetCheckerboard(checkerboardBValues)
+				bga.setupDevice()
+			},
+			setupDevice:async ()=>{
+				const adapter=await navigator.gpu.requestAdapter()
+				device=await adapter.requestDevice()
 				bga.init()
+				device.lost.then((info)=>{
+					cancelAnimationFrame(nextDraw)
+					if(info.reason!=="destroyed"){
+						bga.setupDevice()
+					}
+				})
 			},
 			init:()=>{
-				gl.clearColor(0,0,0,1)
-				patternFB=gl.createFramebuffer()
-				patternTex=gl.createTexture()
-				setupFbTexture(patternFB,patternTex,0,patternWidth,patternHeight)
-				pass1.init(patternFB)
-				pass2.init()
+				needUpdateCheckerboardA=true
+				needUpdateCheckerboardB=true
+				const presentationFormat=navigator.gpu.getPreferredCanvasFormat()
+				context.configure({
+					device,
+					format:presentationFormat,
+				})
+
+				framebuffer=device.createTexture({
+					label:"fb",
+					size:[patternWidth,patternHeight],
+					format:presentationFormat,
+					usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.RENDER_ATTACHMENT,
+				  });
+				pass1.init({device,format:presentationFormat})
+				pass2.init({device,format:presentationFormat,framebuffer})
+
 				bga.draw(0)
 			},
 			draw:(frameId)=>{
 				const nextFrameId=(frameId+1)%renderInterval
 				const resetSize=checkCanvasSize()
 				const newTime=getTime()
-				if(frameId===0){
-					for(let y=0;y<cellHeight;y++){
-						for(let x=0;x<cellWidth;x++){
-							const i=x+y*cellWidth
-							phase[i].offset+=newTime-lastTime
-							phase[i].offset%=phase[i].period
-							allPhases.fill(-phase[i].offset/phase[i].period,6*i,6*(i+1))
-						}
-					}
-					pass1.draw({allPhases})
-					pass2.draw(resetSize)
-					lastTime=newTime
-				}else if(resetSize){
-					pass2.draw(resetSize)
+
+				let progress=progressValues[0]
+				let newProgress=progress+1/150
+				if(Math.floor(progress)<Math.floor(newProgress)){
+					resetCheckerboard(checkerboardAValues)
+					needUpdateCheckerboardA=true
 				}
+				if(Math.floor(progress-0.5)<Math.floor(newProgress-0.5)){
+					resetCheckerboard(checkerboardBValues)
+					needUpdateCheckerboardB=true
+				}
+				progressValues[0]=newProgress%1
+				lastTime=newTime
+
+				const encoder=device.createCommandEncoder({label:'draw-encoder'});
+				pass1.draw({device,encoder,framebuffer,progressValues,checkerboardAValues,checkerboardBValues,needUpdateCheckerboardA,needUpdateCheckerboardB})
+				pass2.draw({device,encoder,resetSize})
+				const commandBuffer=encoder.finish()
+				device.queue.submit([commandBuffer])
+
 				nextDraw=requestAnimationFrame(()=>bga.draw(nextFrameId))
 			}
 		}
 	})()
-	// start
 	bga.start()
 	//]]>
 </script>
