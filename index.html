@@ -19,9 +19,8 @@
 	#logo-square{position:absolute;background-image:url("square.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-square-intro;animation-duration:1200ms;animation-timing-function:ease-in-out}
 	#logo-detail{position:absolute;background-image:url("detail.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-detail-intro;animation-duration:1200ms;animation-timing-function:ease-in-out}
 	@keyframes logo-square-intro{
-		0%{opacity:0;transform:rotate(-30deg);}
-		40%{opacity:1;transform:rotate(-30deg);}
-		80%{opacity:1;transform:rotate(0);}
+		0%{opacity:0;transform:rotateY(90deg);}
+		80%{opacity:1;transform:rotateY(0deg);}
 		100%{opacity:1}
 	}
 	@keyframes logo-detail-intro{
@@ -43,9 +42,9 @@
 <script>
 	//<![CDATA[
 	// const
-	const cellSize=80
-	const cellWidth=24
-	const cellHeight=18
+	const cellSize=120
+	const cellWidth=16
+	const cellHeight=12
 	const cellCount=cellWidth*cellHeight
 	const patternWidth=cellSize*cellWidth
 	const patternHeight=cellSize*cellHeight
@@ -72,15 +71,13 @@
 		const shader=`
 		override cell_width:u32;
 		override cell_height:u32;
-		@group(0)@binding(0)var<uniform> progress:f32;
-		@group(0)@binding(1)var<storage,read> checkerboardA:array<f32>;
-		@group(0)@binding(2)var<storage,read> checkerboardB:array<f32>;
+		@group(0)@binding(0)var<storage,read> progress:array<f32>;
 
 		struct VSOutput{
 			@builtin(position)pos:vec4f,
 			@location(0)coord:vec2f,
-			@location(1)checkerboard:f32,
-			@location(2)flipped:f32,
+			@location(1)progress:f32,
+			@location(2)debug:vec4f,
 		};
 
 		@vertex fn vs(
@@ -98,46 +95,55 @@
 			var output:VSOutput;
 			let cell_x=instanceIndex%cell_width;
 			let cell_y=instanceIndex/cell_width;
-			let checkerboard=(cell_x+cell_y)%2==0;
-			let location=(pos[vertexIndex]+vec2f(f32(cell_x),f32(cell_y)))/vec2f(f32(cell_width),f32(cell_height));
+			let raw_coord=pos[vertexIndex];
+			let raw_corner=pos[(vertexIndex/3%2)*5];
+			let flipped=(cell_x+cell_y)%2==1;
+			let coord=select(raw_coord,vec2f(raw_coord.x,1.-raw_coord.y),flipped);
+			let corner=select(raw_corner,vec2f(raw_corner.x,1.-raw_corner.y),flipped);
+			let location=(coord+vec2f(f32(cell_x),f32(cell_y)))/vec2f(f32(cell_width),f32(cell_height));
+			let cube_x=(cell_x+u32(round(corner.x)))%cell_width;
+			let cube_y=(cell_y+u32(round(corner.y)))%cell_height;
+			let cube_index=(cube_y/2)*cell_width+cube_x;
 			output.pos=vec4f(location*2.-1.,0.0,1.0);
-			output.coord=pos[vertexIndex];
-			output.checkerboard=f32(checkerboard);
-			output.flipped=select(checkerboardA[instanceIndex/2],checkerboardB[instanceIndex/2],checkerboard);
+			output.coord=coord-corner;
+			output.progress=progress[cube_index];
+			output.debug=vec4f((coord-corner+1.0)/2.,f32(cube_index)/f32(cell_width*cell_height/2),1.0);
 			return output;
 		}
 
+		// ref:https://www.shadertoy.com/view/Ns23RK
 		@fragment fn fs(
 			input:VSOutput
 		)->@location(0)vec4f{
-			var coord=input.coord;
-			if input.flipped>0.5 {
-				coord.x=1.-coord.x;
-			}
-			if coord.x+coord.y>1. {
-				coord=1.-coord;
-			}
-			if bool(input.checkerboard) {
-				coord=coord.yx;
-			}
-			let ring=abs(length(coord)-0.5)<=0.1+0.001;
-			let angle=degrees(atan2(coord.y,coord.x))/180+0.25;
-			let center=select(progress,fract(progress+0.5),bool(input.checkerboard));
-			let light=abs(angle-center)<=0.25+0.001;
-			var dot_coord=min(input.coord,1.-input.coord);
-			let dot=length(dot_coord)<=0.2+0.001;
-			return select(
-				select(vec4f(0.0,0.0,0.0,1.0),vec4f(1.0/4.,1.0/4,1.0/4,1.0),dot),
-				vec4f(1.0/2.,0.5/2.,0.0,1.0),
-				ring&&light
-			);
+			let coord=input.coord;
+			let rotate=radians(90*input.progress);
+			let cos_rotate=cos(rotate);
+			let sin_rotate=sin(rotate);
+			let ray_pos=vec3f(2.,2.,2.)+coord.y*vec3f(-1.,-1.,2.)+coord.x*vec3f(-1.,1.,0.)*sqrt(3.);
+			let ray_dir=vec3f(-1.,-1.,-1.);
+			let ray_pos_rot=vec3f(ray_pos.x*cos_rotate-ray_pos.y*sin_rotate,ray_pos.x*sin_rotate+ray_pos.y*cos_rotate,ray_pos.z);
+			let ray_dir_rot=vec3f(ray_dir.x*cos_rotate-ray_dir.y*sin_rotate,ray_dir.x*sin_rotate+ray_dir.y*cos_rotate,ray_dir.z);
+			let box_min=vec3f(-1.,-1.,-1.);
+			let box_max=vec3f(1.,1.,1.);
+			let t_box_min=(box_min-ray_pos_rot)/ray_dir_rot;
+			let t_box_max=(box_max-ray_pos_rot)/ray_dir_rot;
+			let t_min_vec=min(t_box_min,t_box_max);
+			let t_max_vec=max(t_box_min,t_box_max);
+			let t_min=max(t_min_vec.x,max(t_min_vec.y,t_min_vec.z));
+			let t_max=min(t_max_vec.x,min(t_max_vec.y,t_max_vec.z));
+			let pos=ray_pos_rot+ray_dir_rot*t_min-(box_min+box_max)/2.;
+			let abs_pos=abs(pos);
+			let sign_pos=sign(pos);
+			let normal=mix(mix(vec3(.0,.0,sign_pos.z),vec3(sign_pos.x,.0,.0),step(abs_pos.z,abs_pos.x)),mix(vec3(.0,sign_pos.y,.0),vec3(sign_pos.x,.0,.0),step(abs_pos.y,abs_pos.x)),step(abs_pos.z,abs_pos.y));
+			let light=vec3f(0.,1.,.5);
+			let light_rot=vec3f(light.x*cos_rotate-light.y*sin_rotate,light.x*sin_rotate+light.y*cos_rotate,light.z);
+			let intense=(max(0.0,dot(normal,light_rot))*0.5+0.5)/4;
+			return select(vec4(0,0,0,0),vec4(intense*vec3(1.0,1.0,1.0),1.0),t_max>=0.0&&t_min<=t_max);
 		}
-		`
+		`.trim()
 		let module
 		let pipeline
 		let progressBuffer
-		let checkerboardABuffer
-		let checkerboardBBuffer
 		let bindGroup
 		return {
 			init:({device,format})=>{
@@ -163,14 +169,6 @@
 					}
 				})
 				progressBuffer=device.createBuffer({
-					size:4,
-					usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST,
-				})
-				checkerboardABuffer=device.createBuffer({
-					size:4*cellCount/2,
-					usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST,
-				})
-				checkerboardBBuffer=device.createBuffer({
 					size:4*cellCount/2,
 					usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST,
 				})
@@ -179,18 +177,10 @@
 					layout:pipeline.getBindGroupLayout(0),
 					entries:[
 						{binding:0,resource:{buffer:progressBuffer}},
-						{binding:1,resource:{buffer:checkerboardABuffer}},
-						{binding:2,resource:{buffer:checkerboardBBuffer}},
 					],
 				})
 			},
-			draw:({device,encoder,framebuffer,progressValues,checkerboardAValues,checkerboardBValues,needUpdateCheckerboardA,needUpdateCheckerboardB})=>{
-				if(needUpdateCheckerboardA){
-					device.queue.writeBuffer(checkerboardABuffer,0,checkerboardAValues)
-				}
-				if(needUpdateCheckerboardB){
-					device.queue.writeBuffer(checkerboardBBuffer,0,checkerboardBValues)
-				}
+			draw:({device,encoder,framebuffer,progressValues})=>{
 				device.queue.writeBuffer(progressBuffer,0,progressValues)
 				const passDescriptor={
 					label:"pass1",
@@ -232,7 +222,6 @@
 			);
 			return vec4f(pos[vertexIndex],0.0,1.0);
 		}
-
 		@fragment fn fs(
 			@builtin(position)pos:vec4f
 		)->@location(0)vec4f{
@@ -242,7 +231,7 @@
 			let uv=fract((coord-resolution/2.)/tex_resolution+.5);
 			return textureSample(fb,fb_sampler,uv);
 		}
-		`
+		`.trim()
 		let module
 		let pipeline
 		let sampler
@@ -321,30 +310,25 @@
 			}
 		}
 	})()
-	// app
+	// bga
 	const bga=(()=>{
 		const renderInterval=1
 		let lastTime
 		let nextDraw
 		let device
 		let framebuffer
-		const progressValues=new Float32Array(1)
-		let needUpdateCheckerboardA=true
-		let needUpdateCheckerboardB=true
-		const checkerboardAValues=new Float32Array(cellCount/2)
-		const checkerboardBValues=new Float32Array(cellCount/2)
-		const resetCheckerboard=(checkerboard)=>{
-			for(let i=0;i<checkerboard.length;i++){
-				checkerboard[i]=Math.random()>0.5?0:1
-			}
-		}
+		const progressValues=new Float32Array(cellCount/2)
+		const periods=new Float32Array(cellCount/2)
 		return {
 			start:async ()=>{
 				lastTime=getTime()
-				progressValues[0]=Math.random()
-				resetCheckerboard(checkerboardAValues)
-				resetCheckerboard(checkerboardBValues)
 				bga.setupDevice()
+				for(let i=0;i<progressValues.length;i++){
+					progressValues[i]=Math.random()
+				}
+				for(let i=0;i<periods.length;i++){
+					periods[i]=Math.random()*2000+3000
+				}
 			},
 			setupDevice:async ()=>{
 				const adapter=await navigator.gpu.requestAdapter()
@@ -358,8 +342,6 @@
 				})
 			},
 			init:()=>{
-				needUpdateCheckerboardA=true
-				needUpdateCheckerboardB=true
 				const presentationFormat=navigator.gpu.getPreferredCanvasFormat()
 				context.configure({
 					device,
@@ -380,23 +362,21 @@
 			draw:(frameId)=>{
 				const nextFrameId=(frameId+1)%renderInterval
 				const resetSize=checkCanvasSize()
+				if(resetSize){
+					// TODO: better size handling
+					const sizeTooBig=Math.max(canvas.width,canvas.height)>device.limits.maxTextureDimension2D
+					canvas.style.visibility=sizeTooBig?"hidden":"visible"
+				}
 				const newTime=getTime()
+				for(let i=0;i<progressValues.length;i++){
+					progressValues[i]+=(newTime-lastTime)/periods[i]
+					progressValues[i]%=1
+				}
 
-				let progress=progressValues[0]
-				let newProgress=progress+1/150
-				if(Math.floor(progress)<Math.floor(newProgress)){
-					resetCheckerboard(checkerboardAValues)
-					needUpdateCheckerboardA=true
-				}
-				if(Math.floor(progress-0.5)<Math.floor(newProgress-0.5)){
-					resetCheckerboard(checkerboardBValues)
-					needUpdateCheckerboardB=true
-				}
-				progressValues[0]=newProgress%1
 				lastTime=newTime
 
 				const encoder=device.createCommandEncoder({label:'draw-encoder'});
-				pass1.draw({device,encoder,framebuffer,progressValues,checkerboardAValues,checkerboardBValues,needUpdateCheckerboardA,needUpdateCheckerboardB})
+				pass1.draw({device,encoder,framebuffer,progressValues})
 				pass2.draw({device,encoder,resetSize})
 				const commandBuffer=encoder.finish()
 				device.queue.submit([commandBuffer])
