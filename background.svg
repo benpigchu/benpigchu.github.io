@@ -5960,6 +5960,11 @@
          transform="translate(1392,816)"
          style="display:inline"
          clip-path="url(#clipPath630)"><circle
+           style="display:inline;fill:#3f3f3f;fill-opacity:1;stroke:none;stroke-width:140;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+           id="circle2"
+           cx="360"
+           cy="0"
+           r="140" /><circle
            style="display:inline;fill:#1f1f1f;fill-opacity:1;stroke:none;stroke-width:120;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
            id="path199-3-73-01"
            cx="360"
@@ -9785,6 +9790,11 @@
          style="display:inline"
          transform="translate(1168,840)"
          clip-path="url(#clipPath356)"><circle
+           style="fill:#1f1f1f;fill-opacity:1;stroke:none;stroke-width:140;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+           id="circle1"
+           cx="120"
+           cy="0"
+           r="140" /><circle
            style="display:inline;fill:#3f3f3f;fill-opacity:1;stroke:none;stroke-width:120;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
            id="path199-9-3-15-54"
            cx="120"
