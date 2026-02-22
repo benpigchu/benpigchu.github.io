@@ -9,7 +9,7 @@
 	<title>Benpigchu</title>
 </head>
 <style>
-	html{background:#000;background-image:url("background.svg");background-position:50%,50%}
+	html{background:#000;background-image:url("background.svg");background-position:50%,50%;background-size:1920px 1440px}
 	body,html,#background,#canvas,a{height:100%;width:100%}
 	*{margin:0;padding:0}
 	#background{position:fixed;overflow:none}
@@ -19,8 +19,8 @@
 	#logo-square{position:absolute;background-image:url("square.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-square-intro;animation-duration:1200ms;animation-timing-function:ease-in-out}
 	#logo-detail{position:absolute;background-image:url("detail.png");width:240px;height:240px;background-size:240px;z-index:1;left:0;right:0;top:0;bottom:0;margin:auto;animation-name:logo-detail-intro;animation-duration:1200ms;animation-timing-function:ease-in-out}
 	@keyframes logo-square-intro{
-		0%{opacity:0;transform:rotateY(90deg);}
-		80%{opacity:1;transform:rotateY(0deg);}
+		0%{opacity:0;transform:scale(0);}
+		80%{opacity:1;transform:scale(1);}
 		100%{opacity:1}
 	}
 	@keyframes logo-detail-intro{
@@ -71,13 +71,15 @@
 		const shader=`
 		override cell_width:u32;
 		override cell_height:u32;
-		@group(0)@binding(0)var<storage,read> progress:array<f32>;
+		@group(0)@binding(0)var<storage,read> referenceOffset:array<vec2f>;
+		@group(0)@binding(1)var<storage,read> patternOffset:array<vec2f>;
+		@group(0)@binding(2)var<storage,read> patternPhase:array<f32>;
 
 		struct VSOutput{
 			@builtin(position)pos:vec4f,
 			@location(0)coord:vec2f,
-			@location(1)progress:f32,
-			@location(2)debug:vec4f,
+			@location(1)@interpolate(flat)instanceIndex:u32,
+			//@location(2)debug:vec4f,
 		};
 
 		@vertex fn vs(
@@ -95,55 +97,72 @@
 			var output:VSOutput;
 			let cell_x=instanceIndex%cell_width;
 			let cell_y=instanceIndex/cell_width;
-			let raw_coord=pos[vertexIndex];
-			let raw_corner=pos[(vertexIndex/3%2)*5];
-			let flipped=(cell_x+cell_y)%2==1;
-			let coord=select(raw_coord,vec2f(raw_coord.x,1.-raw_coord.y),flipped);
-			let corner=select(raw_corner,vec2f(raw_corner.x,1.-raw_corner.y),flipped);
+			let coord=pos[vertexIndex];
 			let location=(coord+vec2f(f32(cell_x),f32(cell_y)))/vec2f(f32(cell_width),f32(cell_height));
-			let cube_x=(cell_x+u32(round(corner.x)))%cell_width;
-			let cube_y=(cell_y+u32(round(corner.y)))%cell_height;
-			let cube_index=(cube_y/2)*cell_width+cube_x;
 			output.pos=vec4f(location*2.-1.,0.0,1.0);
-			output.coord=coord-corner;
-			output.progress=progress[cube_index];
-			output.debug=vec4f((coord-corner+1.0)/2.,f32(cube_index)/f32(cell_width*cell_height/2),1.0);
+			output.coord=coord;
+			output.instanceIndex=instanceIndex;
 			return output;
 		}
 
-		// ref:https://www.shadertoy.com/view/Ns23RK
 		@fragment fn fs(
 			input:VSOutput
 		)->@location(0)vec4f{
-			let coord=input.coord;
-			let rotate=radians(90*input.progress);
-			let cos_rotate=cos(rotate);
-			let sin_rotate=sin(rotate);
-			let ray_pos=vec3f(2.,2.,2.)+coord.y*vec3f(-1.,-1.,2.)+coord.x*vec3f(-1.,1.,0.)*sqrt(3.);
-			let ray_dir=vec3f(-1.,-1.,-1.);
-			let ray_pos_rot=vec3f(ray_pos.x*cos_rotate-ray_pos.y*sin_rotate,ray_pos.x*sin_rotate+ray_pos.y*cos_rotate,ray_pos.z);
-			let ray_dir_rot=vec3f(ray_dir.x*cos_rotate-ray_dir.y*sin_rotate,ray_dir.x*sin_rotate+ray_dir.y*cos_rotate,ray_dir.z);
-			let box_min=vec3f(-1.,-1.,-1.);
-			let box_max=vec3f(1.,1.,1.);
-			let t_box_min=(box_min-ray_pos_rot)/ray_dir_rot;
-			let t_box_max=(box_max-ray_pos_rot)/ray_dir_rot;
-			let t_min_vec=min(t_box_min,t_box_max);
-			let t_max_vec=max(t_box_min,t_box_max);
-			let t_min=max(t_min_vec.x,max(t_min_vec.y,t_min_vec.z));
-			let t_max=min(t_max_vec.x,min(t_max_vec.y,t_max_vec.z));
-			let pos=ray_pos_rot+ray_dir_rot*t_min-(box_min+box_max)/2.;
-			let abs_pos=abs(pos);
-			let sign_pos=sign(pos);
-			let normal=mix(mix(vec3(.0,.0,sign_pos.z),vec3(sign_pos.x,.0,.0),step(abs_pos.z,abs_pos.x)),mix(vec3(.0,sign_pos.y,.0),vec3(sign_pos.x,.0,.0),step(abs_pos.y,abs_pos.x)),step(abs_pos.z,abs_pos.y));
-			let light=vec3f(0.,1.,.5);
-			let light_rot=vec3f(light.x*cos_rotate-light.y*sin_rotate,light.x*sin_rotate+light.y*cos_rotate,light.z);
-			let intense=(max(0.0,dot(normal,light_rot))*0.5+0.5)/4;
-			return select(vec4(0,0,0,0),vec4(intense*vec3(1.0,1.0,1.0),1.0),t_max>=0.0&&t_min<=t_max);
+			//https://iquilezles.org/articles/voronoilines/
+			let cell_x=input.instanceIndex%cell_width;
+			let cell_y=input.instanceIndex/cell_width;
+
+			//find cell
+			var nearest_x=cell_x;
+			var nearest_y=cell_y;
+			var nearest_i:i32=0;
+			var nearest_j:i32=0;
+			var nearest_ref_point=referenceOffset[input.instanceIndex]+0.5;
+			var nearest_dist=distance(input.coord,nearest_ref_point);
+			for(var i=-2;i<=2;i++){
+				for(var j=-2;j<=2;j++){
+					let x=(cell_x+u32(i+i32(cell_width)))%cell_width;
+					let y=(cell_y+u32(j+i32(cell_height)))%cell_height;
+					let ref_point=referenceOffset[x+y*cell_width]+0.5+vec2f(f32(i),f32(j));
+					let dist=distance(input.coord,ref_point);
+					if(dist<nearest_dist){
+						nearest_x=x;
+						nearest_y=y;
+						nearest_i=i;
+						nearest_j=j;
+						nearest_ref_point=ref_point;
+						nearest_dist=dist;
+					}
+				}
+			}
+
+			var border_dist=16.0;
+			//find border_dist
+			for(var i=-2;i<=2;i++){
+				for(var j=-2;j<=2;j++){
+					if(i==0&&j==0){
+						continue;
+					}
+					let x=(nearest_x+u32(i+i32(cell_width)))%cell_width;
+					let y=(nearest_y+u32(j+i32(cell_height)))%cell_height;
+					let ref_point=referenceOffset[x+y*cell_width]+0.5+vec2f(f32(nearest_i+i),f32(nearest_j+j));
+					let dist=abs(dot((ref_point+nearest_ref_point)/2-input.coord,normalize(ref_point-nearest_ref_point)));
+					border_dist=min(border_dist,dist);
+				}
+			}
+			let border=border_dist<1./12.;
+			let pattern_center=vec2f(f32(nearest_i),f32(nearest_j))+referenceOffset[nearest_x+nearest_y*cell_width]+0.5+patternOffset[nearest_x+nearest_y*cell_width];
+			let light=(distance(input.coord,pattern_center)+patternPhase[nearest_x+nearest_y*cell_width]/3.)%(1./3.)<(1./6.);
+			let lightness=select(select(4./16.,2./16.,light),0./16.,border);
+
+			return vec4(lightness,lightness,lightness,1.0);
 		}
 		`.trim()
 		let module
 		let pipeline
-		let progressBuffer
+		let referenceOffsetBuffer
+		let patternOffsetBuffer
+		let patternPhaseBuffer
 		let bindGroup
 		return {
 			init:({device,format})=>{
@@ -165,23 +184,39 @@
 					fragment:{
 						module,
 						entryPoint:"fs",
+						constants:{
+							cell_width:cellWidth,
+							cell_height:cellHeight,
+						},
 						targets:[{format}]
 					}
 				})
-				progressBuffer=device.createBuffer({
-					size:4*cellCount/2,
+				referenceOffsetBuffer=device.createBuffer({
+					size:4*2*cellCount,
+					usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST,
+				})
+				patternOffsetBuffer=device.createBuffer({
+					size:4*2*cellCount,
+					usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST,
+				})
+				patternPhaseBuffer=device.createBuffer({
+					size:4*cellCount,
 					usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST,
 				})
 				bindGroup=device.createBindGroup({
 					label:"pass1",
 					layout:pipeline.getBindGroupLayout(0),
 					entries:[
-						{binding:0,resource:{buffer:progressBuffer}},
+						{binding:0,resource:{buffer:referenceOffsetBuffer}},
+						{binding:1,resource:{buffer:patternOffsetBuffer}},
+						{binding:2,resource:{buffer:patternPhaseBuffer}},
 					],
 				})
 			},
-			draw:({device,encoder,framebuffer,progressValues})=>{
-				device.queue.writeBuffer(progressBuffer,0,progressValues)
+			draw:({device,encoder,framebuffer,referenceOffset,patternOffset,patternPhase})=>{
+				device.queue.writeBuffer(referenceOffsetBuffer,0,referenceOffset)
+				device.queue.writeBuffer(patternOffsetBuffer,0,patternOffset)
+				device.queue.writeBuffer(patternPhaseBuffer,0,patternPhase)
 				const passDescriptor={
 					label:"pass1",
 					colorAttachments:[
@@ -317,17 +352,41 @@
 		let nextDraw
 		let device
 		let framebuffer
-		const progressValues=new Float32Array(cellCount/2)
-		const periods=new Float32Array(cellCount/2)
+		const cellData=new Array(cellCount).fill(null).map(()=>{
+			const refCycleX=10000+5000*Math.random()
+			const refCycleY=10000+5000*Math.random()
+			const centerPeriod=15000+5000*Math.random()
+			const period=2500+1000*Math.random()
+			return {
+				refCycleX:refCycleX,
+				refCycleY:refCycleY,
+				refPhaseX:refCycleX*Math.random(),
+				refPhaseY:refCycleY*Math.random(),
+				centerXStart:(Math.random()-0.5)*0.5,
+				centerYStart:(Math.random()-0.5)*0.5,
+				centerXEnd:(Math.random()-0.5)*0.5,
+				centerYEnd:(Math.random()-0.5)*0.5,
+				centerPeriod:centerPeriod,
+				centerProgress:centerPeriod*Math.random(),
+				period:period,
+				phase:period*Math.random(),
+			}
+		})
+		const referenceOffset=new Float32Array(cellCount*2)
+		const patternOffset=new Float32Array(cellCount*2)
+		const patternPhase=new Float32Array(cellCount)
 		return {
 			start:async ()=>{
 				lastTime=getTime()
 				bga.setupDevice()
-				for(let i=0;i<progressValues.length;i++){
-					progressValues[i]=Math.random()
+				for(let i=0;i<referenceOffset.length;i++){
+					referenceOffset[i]=(Math.random()-0.5)*0.7
 				}
-				for(let i=0;i<periods.length;i++){
-					periods[i]=Math.random()*2000+3000
+				for(let i=0;i<patternOffset.length;i++){
+					patternOffset[i]=(Math.random()-0.5)*0.5
+				}
+				for(let i=0;i<patternOffset.length;i++){
+					patternPhase[i]=Math.random()
 				}
 			},
 			setupDevice:async ()=>{
@@ -368,15 +427,43 @@
 					canvas.style.visibility=sizeTooBig?"hidden":"visible"
 				}
 				const newTime=getTime()
-				for(let i=0;i<progressValues.length;i++){
-					progressValues[i]+=(newTime-lastTime)/periods[i]
-					progressValues[i]%=1
+				if(frameId===0){
+					for(let i=0;i<cellCount;i++){
+						const cell=cellData[i]
+						cell.refPhaseX+=(newTime-lastTime)
+						if(cell.refPhaseX>cell.refCycleX){
+							cell.refPhaseX%=cell.refCycleX
+						}
+						cell.refPhaseY+=(newTime-lastTime)
+						if(cell.refPhaseY>cell.refCycleY){
+							cell.refPhaseY%=cell.refCycleY
+						}
+						cell.centerProgress+=(newTime-lastTime)
+						if(cell.centerProgress>cell.centerPeriod){
+							cell.centerProgress%=cell.centerPeriod
+							cell.centerXStart=cell.centerXEnd
+							cell.centerYStart=cell.centerYEnd
+							cell.centerXEnd=(Math.random()-0.5)*0.5
+							cell.centerYEnd=(Math.random()-0.5)*0.5
+						}
+						cell.phase+=(newTime-lastTime)
+						cell.phase%=cell.period
+						const centerAnimation=Math.min(1,(cell.centerPeriod-cell.centerProgress)/1000)
+						const centerRatio=centerAnimation*centerAnimation*centerAnimation
+						referenceOffset[2*i]=Math.sin(Math.PI*2*cell.refPhaseX/cell.refCycleX)/2*0.7
+						referenceOffset[2*i+1]=Math.sin(Math.PI*2*cell.refPhaseY/cell.refCycleY)/2*0.7
+						patternOffset[2*i]=(centerRatio)*cell.centerXStart+(1-centerRatio)*cell.centerXEnd
+						patternOffset[2*i+1]=(centerRatio)*cell.centerYStart+(1-centerRatio)*cell.centerYEnd
+						patternPhase[i]=1-cell.phase/cell.period
+					}
+
+					lastTime=newTime
 				}
 
-				lastTime=newTime
-
 				const encoder=device.createCommandEncoder({label:'draw-encoder'});
-				pass1.draw({device,encoder,framebuffer,progressValues})
+				if(frameId===0){
+					pass1.draw({device,encoder,framebuffer,referenceOffset,patternOffset,patternPhase})
+				}
 				pass2.draw({device,encoder,resetSize})
 				const commandBuffer=encoder.finish()
 				device.queue.submit([commandBuffer])
@@ -386,6 +473,5 @@
 		}
 	})()
 	bga.start()
-	//]]>
 </script>
 </html>
